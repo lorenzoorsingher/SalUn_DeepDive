@@ -66,7 +66,7 @@ class UnlearningDataset(Dataset):
         self.RETAIN = list(set(self.TRAIN) - set(self.FORGET))
 
         print(
-            f"Train samples: {len(self.TRAIN)} - Forget samples: {len(self.FORGET)} - Split Ratio: {self.unlearning_ratio}"
+            f"Train samples: {len(self.TRAIN)} - Forget samples: {len(self.FORGET)} - Unlearn Ratio: {self.unlearning_ratio}"
         )
 
 

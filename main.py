@@ -1,6 +1,8 @@
 from datasets import UnlearnCifar10, UnlearnCifar100, UnlearnSVNH
 from torch.utils.data import DataLoader, Subset
 import timm
+from timm.data import resolve_data_config
+from timm.data.transforms_factory import create_transform
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -34,44 +36,51 @@ def train_loop(model, train_loader, criterion, optimizer, device):
     return np.mean(losses)
 
 
+def compute_topk(labels, outputs, k):
+
+    _, indeces = outputs.topk(k)
+    labels_rep = labels.unsqueeze(1).repeat(1, k)
+    topk = (labels_rep == indeces).sum().item()
+
+    return topk
+
+
 def test_loop(model, loader, criterion, device):
 
     model.eval()
 
     losses = []
-
-    true_positives = 0
-
+    top1 = 0
+    top5 = 0
     for idx, data in enumerate(tqdm(loader)):
 
         image = data["image"]
-        label = data["label"]
+        labels = data["label"]
 
         image = image.to(device)
-        label = label.to(device)
+        labels = labels.to(device)
 
         with torch.no_grad():
 
             output = model(image)
-            loss = criterion(output, label)
+            loss = criterion(output, labels)
 
             losses.append(loss.item())
-            preds = output.argmax(dim=1)
-            true_positives += (preds == label).sum().item()
 
-        #     torch.argmax()
-        # breakpoint()
+            top1 += compute_topk(labels, output, 1)
+            top5 += compute_topk(labels, output, 5)
 
-    accuracy = true_positives / len(loader.dataset)
+    top1_acc = top1 / len(loader.dataset)
+    top5_acc = top5 / len(loader.dataset)
 
-    return np.mean(losses), accuracy
+    return np.mean(losses), top1_acc, top5_acc
 
 
 if __name__ == "__main__":
 
     split = [0.7, 0.2, 0.1]
     transform = None
-    dataset = UnlearnCifar100(split=split, transform=transform)
+    dataset = UnlearnSVNH(split=split, transform=transform)
     classes = dataset.classes
 
     train_set = Subset(dataset, dataset.TRAIN)
@@ -92,7 +101,9 @@ if __name__ == "__main__":
 
     model = timm.create_model("resnet18", num_classes=len(classes), pretrained=True)
     model = model.to(DEVICE)
-
+    config = resolve_data_config({}, model=model)
+    transform = create_transform(**config)
+    breakpoint()
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
 
@@ -104,18 +115,23 @@ if __name__ == "__main__":
 
         loss = train_loop(model, train_loader, criterion, optimizer, DEVICE)
 
-        val_loss, val_acc = test_loop(model, val_loader, criterion, DEVICE)
+        val_loss, val_top1, val_top5 = test_loop(model, val_loader, criterion, DEVICE)
 
         print(
-            f"Epoch: {epoch}, Loss: {round(loss,2)}, Val Loss: {round(val_loss,2)}, Val Acc: {round(val_acc,2)} PAT: {pat}"
+            f"Epoch: {epoch}, Loss: {round(loss,2)}, Val Loss: {round(val_loss,2)}, Val Top1: {round(val_top1,2)} Val Top5: {round(val_top5,2)} PAT: {pat}"
         )
 
-        if val_acc > best_acc:
-            best_acc = val_acc
+        if val_top1 > best_acc:
+            best_acc = val_top1
             pat = PAT
+
         else:
             pat -= 1
+            if pat == 0:
+                break
 
-    test_loss, test_acc = test_loop(model, test_loader, criterion, DEVICE)
+    test_loss, test_top1, test_top5 = test_loop(model, test_loader, criterion, DEVICE)
 
-    print(f"Test Loss: {round(test_loss,2)}, Test Acc: {round(test_acc,2)}")
+    print(
+        f"Test Loss: {round(test_loss,2)}, Test Top1: {round(test_top1,2)} Test Top5: {round(test_top5,2)}"
+    )
