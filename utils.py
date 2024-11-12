@@ -1,4 +1,6 @@
 import timm
+import torch
+
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
 
@@ -17,3 +19,12 @@ def compute_topk(labels, outputs, k):
     topk = (labels_rep == indeces).sum().item()
 
     return topk
+
+
+def load_checkpoint(path):
+    model_savefile = torch.load(path, weights_only=False)
+    model = model_savefile["model"]
+    config = model_savefile["config"]
+    transform = create_transform(**config)
+    opt = model_savefile["optimizer"]
+    return model, config, transform, opt
