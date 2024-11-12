@@ -1,8 +1,12 @@
+import datetime
+import os
 import torch
 import numpy as np
+import wandb
 
 from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
+from dotenv import load_dotenv
 
 from datasets import UnlearnCifar10, UnlearnCifar100, UnlearnSVNH
 from utils import get_model, compute_topk, load_checkpoint
@@ -70,6 +74,7 @@ def test_loop(model, loader, criterion, device):
 if __name__ == "__main__":
 
     SAVE_PATH = "checkpoints/"
+    LOG = True
 
     # resnet18 vit_tiny_patch16_224 ... use timm.list_models() to get all models
     MODEL = "resnet18"
@@ -82,6 +87,11 @@ if __name__ == "__main__":
     LR = 0.001
 
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+    if LOG:
+        load_dotenv()
+        WANDB_SECRET = os.getenv("WANDB_SECRET")
+        wandb.login(key=WANDB_SECRET)
 
     split = [0.7, 0.2, 0.1]
     transform = None
@@ -117,6 +127,18 @@ if __name__ == "__main__":
 
     print("Training model")
 
+    if LOG:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_name = f"run_{timestamp}"
+        wandb.init(
+            project="BIO",
+            name=run_name,
+            config={
+                "model": MODEL,
+                "dataset": DSET,
+            },
+        )
+
     best_acc = 0
     pat = PAT
     for epoch in range(EPOCHS):
@@ -125,6 +147,15 @@ if __name__ == "__main__":
 
         val_loss, val_top1, val_top5 = test_loop(model, val_loader, criterion, DEVICE)
 
+        if LOG:
+            wandb.log(
+                {
+                    "train_loss": loss,
+                    "val_loss": val_loss,
+                    "val_top1": val_top1,
+                    "val_top5": val_top5,
+                }
+            )
         print(
             f"Epoch: {epoch}, Loss: {round(loss,2)}, Val Loss: {round(val_loss,2)}, Val Top1: {round(val_top1,2)} Val Top5: {round(val_top5,2)} PAT: {pat}"
         )
@@ -153,3 +184,12 @@ if __name__ == "__main__":
     print(
         f"Test Loss: {round(test_loss,2)}, Test Top1: {round(test_top1,2)} Test Top5: {round(test_top5,2)}"
     )
+
+    if LOG:
+        wandb.log(
+            {
+                "test_loss": test_loss,
+                "test_top1": test_top1,
+                "test_top5": test_top5,
+            }
+        )
