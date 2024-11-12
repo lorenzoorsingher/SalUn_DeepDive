@@ -128,3 +128,4 @@ cython_debug/
 data/*
 *.pt
 *placeholder
+wandb/

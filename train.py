@@ -131,7 +131,7 @@ if __name__ == "__main__":
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         run_name = f"run_{timestamp}"
         wandb.init(
-            project="BIO",
+            project="TrendsAndApps",
             name=run_name,
             config={
                 "model": MODEL,
