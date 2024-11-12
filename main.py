@@ -1,11 +1,11 @@
-from datasets import UnlearnCifar10, UnlearnCifar100, UnlearnSVNH
-from torch.utils.data import DataLoader, Subset
-import timm
-from timm.data import resolve_data_config
-from timm.data.transforms_factory import create_transform
 import torch
 import numpy as np
+
+from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
+
+from datasets import UnlearnCifar10, UnlearnCifar100, UnlearnSVNH
+from utils import get_model, compute_topk
 
 
 def train_loop(model, train_loader, criterion, optimizer, device):
@@ -34,15 +34,6 @@ def train_loop(model, train_loader, criterion, optimizer, device):
         optimizer.step()
 
     return np.mean(losses)
-
-
-def compute_topk(labels, outputs, k):
-
-    _, indeces = outputs.topk(k)
-    labels_rep = labels.unsqueeze(1).repeat(1, k)
-    topk = (labels_rep == indeces).sum().item()
-
-    return topk
 
 
 def test_loop(model, loader, criterion, device):
@@ -78,9 +69,27 @@ def test_loop(model, loader, criterion, device):
 
 if __name__ == "__main__":
 
+    SAVE_PATH = "checkpoints/"
+
+    MODEL = "resnet18"
+    DSET = "cifar10"
+
+    PAT = 4
+    EPOCHS = 100
+    LR = 0.001
+
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
     split = [0.7, 0.2, 0.1]
     transform = None
-    dataset = UnlearnSVNH(split=split, transform=transform)
+
+    if DSET == "cifar10":
+        dataset = UnlearnCifar10(split=split, transform=transform)
+    elif DSET == "cifar100":
+        dataset = UnlearnCifar100(split=split, transform=transform)
+    elif DSET == "svnh":
+        dataset = UnlearnSVNH(split=split, transform=transform)
+
     classes = dataset.classes
 
     train_set = Subset(dataset, dataset.TRAIN)
@@ -95,17 +104,13 @@ if __name__ == "__main__":
     forget_loader = DataLoader(forget_set, batch_size=32, shuffle=False)
     retain_loader = DataLoader(retain_set, batch_size=32, shuffle=False)
 
-    PAT = 4
-    EPOCHS = 100
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-    model = timm.create_model("resnet18", num_classes=len(classes), pretrained=True)
+    model, config, transform = get_model(MODEL, len(classes), True)
     model = model.to(DEVICE)
-    config = resolve_data_config({}, model=model)
-    transform = create_transform(**config)
-    breakpoint()
+
+    dataset.set_transform(transform)
+
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.AdamW(model.parameters(), lr=0.001)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
 
     print("Training model")
 
@@ -124,6 +129,16 @@ if __name__ == "__main__":
         if val_top1 > best_acc:
             best_acc = val_top1
             pat = PAT
+
+            model_savefile = {
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "config": config,
+            }
+
+            model_savepath = f"{SAVE_PATH}{MODEL}_{DSET}_best.pt"
+
+            torch.save(model_savefile, model_savepath)
 
         else:
             pat -= 1

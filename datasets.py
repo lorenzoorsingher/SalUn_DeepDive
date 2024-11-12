@@ -1,10 +1,10 @@
 import random
 import torch
+import matplotlib.pyplot as plt
+
+from torch.utils.data import DataLoader, Subset
 from torch.utils.data import Dataset
 from torchvision import datasets, transforms
-import numpy as np
-import matplotlib.pyplot as plt
-from torch.utils.data import DataLoader, Subset
 
 
 class UnlearningDataset(Dataset):
@@ -45,6 +45,7 @@ class UnlearningDataset(Dataset):
         sample, label = self.data[idx]
 
         if self.transform:
+            sample = transforms.ToTensor()(sample)
             sample = self.transform(sample)
         else:
             sample = transforms.ToTensor()(sample)
@@ -68,6 +69,9 @@ class UnlearningDataset(Dataset):
         print(
             f"Train samples: {len(self.TRAIN)} - Forget samples: {len(self.FORGET)} - Unlearn Ratio: {self.unlearning_ratio}"
         )
+
+    def set_transform(self, transform):
+        self.transform = transform
 
 
 class UnlearnCifar10(UnlearningDataset):
