@@ -3,6 +3,7 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import datasets, transforms
 import numpy as np
+import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, Subset
 
 
@@ -10,7 +11,7 @@ class UnlearningDataset(Dataset):
     def __init__(
         self,
         unlearning_ratio=0.1,
-        val_ratio=0.2,
+        split=[0.7, 0.2, 0.1],
         transform=None,
     ):
 
@@ -22,13 +23,20 @@ class UnlearningDataset(Dataset):
         self.RETAIN = None
 
         self.unlearning_ratio = unlearning_ratio
-        self.val_ratio = val_ratio
+
+        self.train_split = split[0]
+        self.val_split = split[1]
+        self.test_split = split[2]
 
         self.split_unlearning()
+
+        _, labels = zip(*self.data)
+        self.classes = set(labels)
 
         assert set(self.RETAIN).intersection(set(self.FORGET)) == set()
         assert set(self.RETAIN).union(set(self.FORGET)) == set(self.TRAIN)
         assert set(self.TRAIN).intersection(set(self.VAL)) == set()
+        assert set(self.TRAIN).intersection(set(self.TEST)) == set()
 
     def __len__(self):
         return len(self.data)
@@ -41,8 +49,6 @@ class UnlearningDataset(Dataset):
         else:
             sample = transforms.ToTensor()(sample)
 
-        # breakpoint()
-
         data = {}
         data["image"] = sample
         data["label"] = label
@@ -51,7 +57,7 @@ class UnlearningDataset(Dataset):
     def split_unlearning(self):
 
         # Split the training set into train and validation
-        self.VAL = random.sample(self.TRAIN, int(len(self.TRAIN) * self.val_ratio))
+        self.VAL = random.sample(self.TRAIN, int(len(self.TRAIN) * self.val_split))
         self.TRAIN = list(set(self.TRAIN) - set(self.VAL))
 
         # Split the training set into forget and retain
@@ -65,68 +71,102 @@ class UnlearningDataset(Dataset):
 
 
 class UnlearnCifar10(UnlearningDataset):
-    def __init__(self, unlearning_ratio=0.1, val_ratio=0.2, transform=None):
+    def __init__(self, unlearning_ratio=0.1, split=[0.7, 0.2, 0.1], transform=None):
 
-        self.data = datasets.CIFAR10(
+        train = datasets.CIFAR10(
             root="./data", train=True, download=True, transform=None
         )
 
-        self.TRAIN = [i for i in range(len(self.data))]
+        test = datasets.CIFAR10(
+            root="./data", train=False, download=True, transform=None
+        )
+
+        self.TRAIN = [i for i in range(len(train))]
+
+        self.TEST = [i for i in range(len(train), len(train) + len(test))]
+
+        self.data = torch.utils.data.ConcatDataset([train, test])
 
         super(UnlearnCifar10, self).__init__(
             unlearning_ratio=unlearning_ratio,
-            val_ratio=val_ratio,
+            split=split,
             transform=transform,
         )
 
 
 class UnlearnCifar100(UnlearningDataset):
-    def __init__(self, unlearning_ratio=0.1, val_ratio=0.2, transform=None):
+    def __init__(self, unlearning_ratio=0.1, split=[0.7, 0.2, 0.1], transform=None):
 
-        self.data = datasets.CIFAR100(
+        train = datasets.CIFAR100(
             root="./data", train=True, download=True, transform=None
         )
 
-        self.TRAIN = [i for i in range(len(self.data))]
+        test = datasets.CIFAR100(
+            root="./data", train=False, download=True, transform=None
+        )
+
+        self.TRAIN = [i for i in range(len(train))]
+
+        self.TEST = [i for i in range(len(train), len(train) + len(test))]
+
+        self.data = torch.utils.data.ConcatDataset([train, test])
 
         super(UnlearnCifar100, self).__init__(
             unlearning_ratio=unlearning_ratio,
-            val_ratio=val_ratio,
+            split=split,
             transform=transform,
         )
 
 
 class UnlearnSVNH(UnlearningDataset):
-    def __init__(self, unlearning_ratio=0.1, val_ratio=0.2, transform=None):
+    def __init__(self, unlearning_ratio=0.1, split=[0.7, 0.2, 0.1], transform=None):
 
+        test_split = split[2]
         self.data = datasets.SVHN(root="./data", download=True, transform=None)
 
-        self.TRAIN = [i for i in range(len(self.data))]
+        TRAIN = [i for i in range(len(self.data))]
+
+        self.TEST = [i for i in range(int(len(self.data) * test_split))]
+
+        self.TRAIN = list(set(TRAIN) - set(self.TEST))
 
         super(UnlearnSVNH, self).__init__(
             unlearning_ratio=unlearning_ratio,
-            val_ratio=val_ratio,
+            split=split,
             transform=transform,
         )
 
 
 if __name__ == "__main__":
 
-    dataset = UnlearnSVNH()
+    # dataset = UnlearnSVNH()
+    # dataset = UnlearnCifar10()
+
+    # train val test
+    split = [0.7, 0.2, 0.1]
+    dataset = UnlearnSVNH(split=split)
 
     train_set = Subset(dataset, dataset.TRAIN)
     val_set = Subset(dataset, dataset.VAL)
+    test_set = Subset(dataset, dataset.TEST)
     forget_set = Subset(dataset, dataset.FORGET)
     retain_set = Subset(dataset, dataset.RETAIN)
 
     train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=32, shuffle=False)
+    test_loader = DataLoader(test_set, batch_size=32, shuffle=False)
     forget_loader = DataLoader(forget_set, batch_size=32, shuffle=False)
     retain_loader = DataLoader(retain_set, batch_size=32, shuffle=False)
 
-    for data in train_loader:
+    for data in test_loader:
 
         image = data["image"]
         label = data["label"]
 
-        breakpoint()
+        img = transforms.ToPILImage()(image[0])
+
+        # breakpoint()
+        plt.imshow(img)
+        plt.title(f"Label: {label[0]}")
+        plt.show()
+        # breakpoint()
