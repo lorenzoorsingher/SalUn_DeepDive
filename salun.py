@@ -3,29 +3,44 @@ import random
 import torch
 from functools import partial
 from tqdm import tqdm
+import time
+from torchvision import transforms
 
-from method import utils
-from method.metrics import evaluate_after_unlearning
 
 
-def compute_mask(model, forget_loader, criterion, args):
+
+def compute_mask(model, forget_loader, unlearn_lr, saliency_treshold = 0.5):
+    if torch.cuda.is_available():
+        device = torch.device(f"cuda:{0}")
+    else:
+        device = torch.device("cpu")
+    
+
+    optimizer = torch.optim.SGD(
+        model.parameters(),
+        lr=unlearn_lr
+
+    )    
+
     gradients = {}
     model.eval()
     model.zero_grad()
-
+    
+    criterion = torch.nn.CrossEntropyLoss()
+    
     for name, param in model.named_parameters():
         gradients[name] = 0
 
     print("Computing Gradients...")
     for batch in forget_loader:
-        image = batch[-3]
-        target = batch[-2]
+        image = batch[0]
+        target = batch[1]
 
-        image = image.to(args.device)
-        target = target.to(args.device)
+        image = image.to(device)
+        target = target.to(device)
 
         output = model(image)
-        loss = -criterion(output, target)
+        loss = - criterion(output, target)
 
         loss.backward()
 
@@ -44,12 +59,13 @@ def compute_mask(model, forget_loader, criterion, args):
     all_elements = -torch.cat([w.flatten() for w in gradients.values()])
 
     # calculate number of elements to keep
-    threshold_index = int(len(all_elements) * args.saliency_threshold)
+    
+    threshold_index = int(len(all_elements) * saliency_treshold)
 
     # calculate positions of all elements
     positions = torch.argsort(all_elements)
     ranks = torch.argsort(positions)
-
+    
     print("Computing Saliency Mask...")
     start_index = 0
     for key, w in gradients.items():
@@ -178,108 +194,53 @@ def random_labeling_big(model, datasets, use_mask, run, args):
     return unlearned_model
 
 
-def random_labeling_small(model, datasets, use_mask, run, args):
-    assert args.world_size == 1, "SalUn is not compatible with distributed training"
-    assert args.task == "classification", "SalUn is not compatible with multilabel classification"
-
-    train_dataset = datasets.get_train_data()
-    unlearning_datasets = datasets.get_unlearning_data(train=args.use_train_aug)
-    retain_dataset = unlearning_datasets["retain"]
-    forget_dataset = unlearning_datasets["forget"]
-
-    generic_loader = partial(
-        torch.utils.data.DataLoader,
-        batch_size=args.batch_size,
-        pin_memory=args.pin_memory,
-        num_workers=args.num_workers,
-        drop_last=args.drop_last,
-    )
-
-    train_sampler = utils.get_sampler(train_dataset, shuffle=False, weights=None)
-    retain_sampler = utils.get_sampler(retain_dataset, shuffle=True, weights=None)
-    forget_sampler = utils.get_sampler(forget_dataset, shuffle=True, weights=None)
-
-    train_loader = generic_loader(train_dataset, sampler=train_sampler)
-    retain_loader = generic_loader(retain_dataset, sampler=retain_sampler)
-    forget_loader = generic_loader(forget_dataset, sampler=forget_sampler)
-
-    utils.print_info(args, model, train_loader)
-
-    criterion = utils.get_criterion(args.criterion).to(args.device)
-
-    if use_mask:
-        mask = compute_mask(model, forget_loader, criterion, args)
-
+def random_labeling(model, dataset , mask, use_mask = True, epochs =10):
+    if torch.cuda.is_available():
+        device = torch.device(f"cuda:{0}")
+    else:
+        device = torch.device("cpu")
+    
+    criterion = torch.nn.CrossEntropyLoss()
     unlearned_model = copy.deepcopy(model)
-    unlearned_model = unlearned_model.to(args.device)
+    unlearned_model = unlearned_model.to(device)
+    model.train()
+    #assign random labels to the forget data
+    data_copy = copy.deepcopy(dataset.data)
+    forget_idx = dataset.FORGET
+    forget_data_random_label = []
+    #assign random label except the original one
+    for idx in forget_idx:
+        class_to_forget = dataset[idx]["label"]
+        num = random.randint(0,len(dataset.classes))
+        if(num == class_to_forget):
+            num = (num+1)%(9)
+        new_data = (dataset[idx]["image"], num)
+        forget_data_random_label.append(new_data)
+    #create a dataloader for the random labeled data
+    random_labeled_loader = torch.utils.data.DataLoader(forget_data_random_label, batch_size=32, shuffle=True)
+    optimizer = torch.optim.AdamW(unlearned_model.parameters(), lr=0.001)
+    for epoch in range(epochs):
+        for batch in tqdm(random_labeled_loader, desc=f"Epoch {epoch+1}/{epochs}"):
+            image = batch[0]
+            target = batch[1]
+            breakpoint()
+            image = image.to(device)
+            target = target.to(device)
 
-    criterion = utils.get_criterion(args.criterion).to(args.device)
+            output = unlearned_model(image)
+            loss = criterion(output, target)
 
-    optimizer = utils.get_optimizer(unlearned_model, args)
-    scheduler = utils.get_scheduler(optimizer, args)
-
-    num_digits = len(str(args.epochs))
-    for epoch in range(args.epochs):
-        unlearned_model.train()
-        for desc, loader in zip(["Forget", "Retain"], [forget_loader, retain_loader]):
-            for image, target, sensitive in tqdm(
-                loader, desc=f"{desc} Step", leave=False, dynamic_ncols=True
-            ):
-                with torch.autocast(device_type="cuda", dtype=args.dtype):
-                    image = image.to(device=args.device, dtype=args.dtype)
-                    if desc == "Forget":
-                        target = torch.randint(0, args.num_classes, target.size())
-                    target = target.to(args.device)
-                    sensitive = sensitive.to(args.device)
-
-                    output = unlearned_model(image)
-                    loss = criterion(output, target)
-
-                loss.backward()
-
-                if use_mask:
-                    for name, param in unlearned_model.named_parameters():
-                        if param.grad is not None:
-                            param.grad *= mask[name]
-
-                optimizer.step()
-                optimizer.zero_grad()
-
-                if args.debug:
-                    break
-
-        if args.debug:
-            break
-
-        if epoch % args.evaluate_every == 0:
-            (
-                retain_loss,
-                retain_acc,
-                retain_losses,
-                forget_loss,
-                forget_acc,
-                forget_losses,
-                val_loss,
-                val_acc,
-                val_losses,
-                test_loss,
-                test_acc,
-                test_losses,
-            ) = evaluate_after_unlearning(unlearned_model, datasets, criterion, args=args)
-            print(
-                f"| Epoch: {str(epoch+1).zfill(num_digits)}/{args.epochs} | LR: {optimizer.param_groups[0]['lr']:.4f} | Retain Loss: {retain_loss:.4f} | Retain Acc: {retain_acc:.2f} | Forget Loss: {forget_loss:.4f} | Forget Acc: {forget_acc:.2f} | Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.2f} |"
-            )
-
-        scheduler.step()
-
+            optimizer.zero_grad()
+            loss.backward()
+            if use_mask:
+                for name, param in unlearned_model.named_parameters():
+                    if param.grad is not None:
+                        param.grad *= mask[name]
+            optimizer.step()
+        
     return unlearned_model
-
-
-def rl(model, datasets, run, args):
-    random_labeling = random_labeling_small if args.dataset != "cifar100" else random_labeling_big
-    return random_labeling(model, datasets, use_mask=False, run=run, args=args)
-
 
 def salun(model, datasets, run, args):
     random_labeling = random_labeling_small if args.dataset != "cifar100" else random_labeling_big
     return random_labeling(model, datasets, use_mask=True, run=run, args=args)
+
