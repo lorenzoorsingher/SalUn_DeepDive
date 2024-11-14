@@ -13,10 +13,11 @@ class UnlearningDataset(Dataset):
         unlearning_ratio=0.1,
         split=[0.7, 0.2, 0.1],
         transform=None,
+        class_to_forget=None,
     ):
 
         self.transform = transform
-
+        self.class_to_forget = class_to_forget
         self.idxs = None
         self.VAL = None
         self.FORGET = None
@@ -62,9 +63,13 @@ class UnlearningDataset(Dataset):
         self.TRAIN = list(set(self.TRAIN) - set(self.VAL))
 
         # Split the training set into forget and retain
-        num_images_to_forget = int(len(self.TRAIN) * self.unlearning_ratio)
-        self.FORGET = random.sample(self.TRAIN, num_images_to_forget)
-        self.RETAIN = list(set(self.TRAIN) - set(self.FORGET))
+        if(self.class_to_forget is not None):
+            self.FORGET = [idx for idx in self.TRAIN if self.data[idx][1] == self.class_to_forget]
+            self.RETAIN = list(set(self.TRAIN) - set(self.FORGET))
+        else:
+            num_images_to_forget = int(len(self.TRAIN) * self.unlearning_ratio)
+            self.FORGET = random.sample(self.TRAIN, num_images_to_forget)
+            self.RETAIN = list(set(self.TRAIN) - set(self.FORGET))
 
         print(
             f"Train samples: {len(self.TRAIN)} - Forget samples: {len(self.FORGET)} - Unlearn Ratio: {self.unlearning_ratio}"
@@ -75,7 +80,7 @@ class UnlearningDataset(Dataset):
 
 
 class UnlearnCifar10(UnlearningDataset):
-    def __init__(self, unlearning_ratio=0.1, split=[0.7, 0.2, 0.1], transform=None):
+    def __init__(self, unlearning_ratio=0.1, split=[0.7, 0.2, 0.1], transform=None, class_to_forget=None):
 
         train = datasets.CIFAR10(
             root="./data", train=True, download=True, transform=None
@@ -95,6 +100,7 @@ class UnlearnCifar10(UnlearningDataset):
             unlearning_ratio=unlearning_ratio,
             split=split,
             transform=transform,
+            class_to_forget=class_to_forget
         )
 
 
