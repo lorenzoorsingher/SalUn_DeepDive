@@ -77,9 +77,31 @@ class UnlearningDataset(Dataset):
 
     def set_transform(self, transform):
         self.transform = transform
+    def get_forget_dataLoader(self):
+        forget_idxs = self.FORGET
+        forget_dataset = [self.data[i] for i in forget_idxs]
+        transform = transforms.Compose([
+            transforms.ToTensor()
+        ])
+        forget_dataset = [(transform(image), label) for image, label in forget_dataset]
+        
+        forget_dataloader = DataLoader(forget_dataset, batch_size=32, shuffle=False)
+        return forget_dataloader
 
 
 class UnlearnCifar10(UnlearningDataset):
+    ## Dictionary to map CIFAR-10 labels to class names
+    #0: 'Airplane',
+    #1: 'Automobile',
+    #2: 'Bird',
+    #3: 'Cat',
+    #4: 'Deer',
+    #5: 'Dog',
+    #6: 'Frog',
+    #7: 'Horse',
+    #8: 'Ship',
+    #9: 'Truck'
+
     def __init__(self, unlearning_ratio=0.1, split=[0.7, 0.2, 0.1], transform=None, class_to_forget=None):
 
         train = datasets.CIFAR10(
