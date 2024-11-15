@@ -21,10 +21,11 @@ def compute_mask(model, forget_loader, unlearn_lr, saliency_threshold=0.5, devic
 
     gradients = {}
     for name, param in model.named_parameters():
-        gradients[name] = torch.zeros_like(param.data)
+        gradients[name] = 0
+
 
     print("Computing Gradients...")
-    for batch_idx, batch in enumerate(forget_loader):
+    for batch_idx, batch in enumerate(tqdm(forget_loader, desc="Processing batches")):
         image, target = batch[0].to(device), batch[1].to(device)
         output = model(image)
         loss = -criterion(output, target)  # Negative loss for unlearning
@@ -35,24 +36,39 @@ def compute_mask(model, forget_loader, unlearn_lr, saliency_threshold=0.5, devic
         with torch.no_grad():
             for name, param in model.named_parameters():
                 if param.grad is not None:
-                    gradients[name] += param.grad.data / len(forget_loader)  # Average gradients
+                    gradients[name] += param.grad.data
 
     with torch.no_grad():
         for name in gradients:
             gradients[name] = torch.abs_(gradients[name])
 
-    mask = {}
-    all_elements = torch.cat([w.flatten() for w in gradients.values()])
+    sorted_dict_positions = {}
+    hard_dict = {}
+    all_elements = - torch.cat([tensor.flatten() for tensor in gradients.values()])
 
-    # Dynamic threshold calculation (example - you can adjust this)
-    threshold_index = int(len(all_elements) * saliency_threshold) 
-    threshold_value = torch.kthvalue(all_elements, threshold_index).values
+    threshold_index = int(len(all_elements) * saliency_threshold)
+    # Calculate positions of all elements
+    positions = torch.argsort(all_elements)
+    ranks = torch.argsort(positions)
 
     print("Computing Saliency Mask...")
-    for key, w in gradients.items():
-        mask[key] = (w >= threshold_value).float()  # More efficient masking
+    start_index = 0
+    for key, tensor in tqdm(gradients.items(),desc="Processing tensors"):
+            num_elements = tensor.numel()
+            # tensor_positions = positions[start_index: start_index + num_elements]
+            tensor_ranks = ranks[start_index : start_index + num_elements]
 
-    return mask
+            sorted_positions = tensor_ranks.reshape(tensor.shape)
+            sorted_dict_positions[key] = sorted_positions
+
+            # Set the corresponding elements to 1
+            threshold_tensor = torch.zeros_like(tensor_ranks)
+            threshold_tensor[tensor_ranks < threshold_index] = 1
+            threshold_tensor = threshold_tensor.reshape(tensor.shape)
+            hard_dict[key] = threshold_tensor
+            start_index += num_elements  # More efficient masking
+
+    return hard_dict
 
 
 def random_labeling_big(model, datasets, use_mask, run, args):
