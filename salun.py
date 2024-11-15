@@ -16,7 +16,7 @@ def compute_mask(model, forget_loader, unlearn_lr, saliency_threshold=0.5, devic
     model.to(device)
     model.eval()
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=unlearn_lr)
+    optimizer = torch.optim.SGD(model.parameters(), lr=unlearn_lr)
     criterion = torch.nn.CrossEntropyLoss()
 
     gradients = {}
@@ -209,7 +209,7 @@ def random_labeling(model, dataset , mask, use_mask = True, epochs =10):
         forget_data_random_label.append(new_data)
     #create a dataloader for the random labeled data
     random_labeled_loader = torch.utils.data.DataLoader(forget_data_random_label, batch_size=32, shuffle=True)
-    optimizer = torch.optim.AdamW(unlearned_model.parameters(), lr=0.1)
+    optimizer = torch.optim.SGD(unlearned_model.parameters(), lr=0.1)
     for epoch in range(epochs):
         for batch in tqdm(random_labeled_loader, desc=f"Epoch {epoch+1}/{epochs}"):
             image = batch[0]
