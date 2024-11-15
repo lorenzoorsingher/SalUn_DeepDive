@@ -15,3 +15,34 @@ WANDB_SECRET="YOUR_WAND_API_KEY"
 ```
 
 YOUR_WAND_API_KEY can be found in your account settings on wandb.ai under `User settings` > `API keys`.
+
+## Salun usage
+
+**Steps:**
+
+1. **Create Dataset:**
+   ```python
+   dataset = UnlearnCifar10(class_to_forget=class_to_forget) 
+   ```
+2. **Load NN:**
+```python
+   model = timm.create_model("resnet18", pretrained=False)
+   ``` 
+3. **Compute mask**
+    ```python
+        import salun
+        mask = salun.compute_mask(model=model, forget_loader=forget_loader, unlearn_lr=0.1, saliency_threshold=0.5)
+    ```    
+4. **Unlearn**
+    ```python
+        mask = salun.compute_mask(model=model, forget_loader=forget_loader, unlearn_lr=0.1, saliency_threshold=0.5)
+    ```    
+6. **Eval**
+    ```python
+    import test
+    resultS = test.evaluate_unlearning(model=salun_model, X_test=images_tensor, y_test=labels_tensor, test_idx=dataset.TEST, class_to_forget=class_to_forget)
+    ```    
+
+
+
+     
