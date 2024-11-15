@@ -25,7 +25,7 @@ def compute_mask(model, forget_loader, unlearn_lr, saliency_treshold = 0.5):
     gradients = {}
     model.eval()
     model.zero_grad()
-    
+    model.to(device)
     criterion = torch.nn.CrossEntropyLoss()
     
     for name, param in model.named_parameters():
@@ -38,7 +38,6 @@ def compute_mask(model, forget_loader, unlearn_lr, saliency_treshold = 0.5):
 
         image = image.to(device)
         target = target.to(device)
-
         output = model(image)
         loss = - criterion(output, target)
 
