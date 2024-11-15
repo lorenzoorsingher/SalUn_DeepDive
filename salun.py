@@ -8,75 +8,49 @@ from torchvision import transforms
 
 
 
+import torch
 
-def compute_mask(model, forget_loader, unlearn_lr, saliency_treshold = 0.5):
-    if torch.cuda.is_available():
-        device = torch.device(f"cuda:{0}")
-    else:
-        device = torch.device("cpu")
-    
+def compute_mask(model, forget_loader, unlearn_lr, saliency_threshold=0.5, device=None):
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+    model.eval()
 
-    optimizer = torch.optim.SGD(
-        model.parameters(),
-        lr=unlearn_lr
-
-    )    
+    optimizer = torch.optim.AdamW(model.parameters(), lr=unlearn_lr)
+    criterion = torch.nn.CrossEntropyLoss()
 
     gradients = {}
-    model.eval()
-    model.zero_grad()
-    model.to(device)
-    criterion = torch.nn.CrossEntropyLoss()
-    
     for name, param in model.named_parameters():
-        gradients[name] = 0
+        gradients[name] = torch.zeros_like(param.data)
 
     print("Computing Gradients...")
-    for batch in forget_loader:
-        image = batch[0]
-        target = batch[1]
-
-        image = image.to(device)
-        target = target.to(device)
+    for batch_idx, batch in enumerate(forget_loader):
+        image, target = batch[0].to(device), batch[1].to(device)
         output = model(image)
-        loss = - criterion(output, target)
+        loss = -criterion(output, target)  # Negative loss for unlearning
 
+        optimizer.zero_grad()
         loss.backward()
 
         with torch.no_grad():
             for name, param in model.named_parameters():
                 if param.grad is not None:
-                    gradients[name] += param.grad.data
-
-        model.zero_grad()
+                    gradients[name] += param.grad.data / len(forget_loader)  # Average gradients
 
     with torch.no_grad():
         for name in gradients:
             gradients[name] = torch.abs_(gradients[name])
 
     mask = {}
-    all_elements = -torch.cat([w.flatten() for w in gradients.values()])
+    all_elements = torch.cat([w.flatten() for w in gradients.values()])
 
-    # calculate number of elements to keep
-    
-    threshold_index = int(len(all_elements) * saliency_treshold)
+    # Dynamic threshold calculation (example - you can adjust this)
+    threshold_index = int(len(all_elements) * saliency_threshold) 
+    threshold_value = torch.kthvalue(all_elements, threshold_index).values
 
-    # calculate positions of all elements
-    positions = torch.argsort(all_elements)
-    ranks = torch.argsort(positions)
-    
     print("Computing Saliency Mask...")
-    start_index = 0
     for key, w in gradients.items():
-        num_elements = w.numel()
-        weight_ranks = ranks[start_index : start_index + num_elements]
-
-        # set the corresponding elements to 1
-        threshold_tensor = torch.zeros_like(weight_ranks)
-        threshold_tensor[weight_ranks < threshold_index] = 1
-        threshold_tensor = threshold_tensor.reshape(w.shape)
-        mask[key] = threshold_tensor
-        start_index += num_elements
+        mask[key] = (w >= threshold_value).float()  # More efficient masking
 
     return mask
 
@@ -219,7 +193,7 @@ def random_labeling(model, dataset , mask, use_mask = True, epochs =10):
         forget_data_random_label.append(new_data)
     #create a dataloader for the random labeled data
     random_labeled_loader = torch.utils.data.DataLoader(forget_data_random_label, batch_size=32, shuffle=True)
-    optimizer = torch.optim.AdamW(unlearned_model.parameters(), lr=0.001)
+    optimizer = torch.optim.AdamW(unlearned_model.parameters(), lr=0.1)
     for epoch in range(epochs):
         for batch in tqdm(random_labeled_loader, desc=f"Epoch {epoch+1}/{epochs}"):
             image = batch[0]

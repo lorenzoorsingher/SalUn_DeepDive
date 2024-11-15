@@ -85,7 +85,7 @@ class UnlearningDataset(Dataset):
         ])
         forget_dataset = [(transform(image), label) for image, label in forget_dataset]
         
-        forget_dataloader = DataLoader(forget_dataset, batch_size=32, shuffle=False)
+        forget_dataloader = DataLoader(forget_dataset, batch_size=32, shuffle=True)
         return forget_dataloader
 
 
