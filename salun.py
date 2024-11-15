@@ -211,10 +211,12 @@ def random_labeling(model, dataset , mask, use_mask = True, epochs =10):
     #assign random label except the original one
     for idx in forget_idx:
         class_to_forget = dataset[idx]["label"]
-        num = random.randint(0,len(dataset.classes))
+        num = random.randint(0,len(dataset.classes)-1)
         if(num == class_to_forget):
-            num = (num+1)%(9)
-        new_data = (dataset[idx]["image"], num)
+            num = (num+1)%(10)
+        image = data_copy[idx][0]
+        image_tensor = transforms.ToTensor()(image)
+        new_data = (image_tensor, num)
         forget_data_random_label.append(new_data)
     #create a dataloader for the random labeled data
     random_labeled_loader = torch.utils.data.DataLoader(forget_data_random_label, batch_size=32, shuffle=True)
@@ -223,7 +225,6 @@ def random_labeling(model, dataset , mask, use_mask = True, epochs =10):
         for batch in tqdm(random_labeled_loader, desc=f"Epoch {epoch+1}/{epochs}"):
             image = batch[0]
             target = batch[1]
-            breakpoint()
             image = image.to(device)
             target = target.to(device)
 
