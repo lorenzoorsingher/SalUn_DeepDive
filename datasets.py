@@ -10,19 +10,19 @@ from torchvision import datasets, transforms
 class UnlearningDataset(Dataset):
     def __init__(
         self,
-        unlearning_ratio=0.1,
         split=[0.7, 0.2, 0.1],
         transform=None,
+        unlearning_ratio=None,
         class_to_forget=None,
     ):
 
         self.transform = transform
-        self.class_to_forget = class_to_forget
         self.idxs = None
         self.VAL = None
         self.FORGET = None
         self.RETAIN = None
 
+        self.class_to_forget = class_to_forget
         self.unlearning_ratio = unlearning_ratio
 
         self.train_split = split[0]
@@ -33,6 +33,11 @@ class UnlearningDataset(Dataset):
 
         _, labels = zip(*self.data)
         self.classes = set(labels)
+
+        if self.unlearning_ratio is not None and self.class_to_forget is not None:
+            print(
+                f"[DATASET] WARNING: unlearning_ratio and class_to_forget are both set. Using class to forget"
+            )
 
         assert set(self.RETAIN).intersection(set(self.FORGET)) == set()
         assert set(self.RETAIN).union(set(self.FORGET)) == set(self.TRAIN)
@@ -54,6 +59,9 @@ class UnlearningDataset(Dataset):
         data = {}
         data["image"] = sample
         data["label"] = label
+
+        data["idx"] = idx
+
         return data
 
     def split_unlearning(self):
@@ -63,13 +71,19 @@ class UnlearningDataset(Dataset):
         self.TRAIN = list(set(self.TRAIN) - set(self.VAL))
 
         # Split the training set into forget and retain
-        if(self.class_to_forget is not None):
-            self.FORGET = [idx for idx in self.TRAIN if self.data[idx][1] == self.class_to_forget]
+        if self.class_to_forget is not None:
+            self.FORGET = [
+                idx for idx in self.TRAIN if self.data[idx][1] == self.class_to_forget
+            ]
             self.RETAIN = list(set(self.TRAIN) - set(self.FORGET))
+            print(
+                f"[DATASET] Forgetting {len(self.FORGET)} images from class {self.class_to_forget}"
+            )
         else:
             num_images_to_forget = int(len(self.TRAIN) * self.unlearning_ratio)
             self.FORGET = random.sample(self.TRAIN, num_images_to_forget)
             self.RETAIN = list(set(self.TRAIN) - set(self.FORGET))
+            print(f"[DATASET] Forgetting {num_images_to_forget} images")
 
         print(
             f"Train samples: {len(self.TRAIN)} - Forget samples: {len(self.FORGET)} - Unlearn Ratio: {self.unlearning_ratio}"
@@ -77,32 +91,37 @@ class UnlearningDataset(Dataset):
 
     def set_transform(self, transform):
         self.transform = transform
+
     def get_forget_dataLoader(self):
         forget_idxs = self.FORGET
         forget_dataset = [self.data[i] for i in forget_idxs]
-        transform = transforms.Compose([
-            transforms.ToTensor()
-        ])
+        transform = transforms.Compose([transforms.ToTensor()])
         forget_dataset = [(transform(image), label) for image, label in forget_dataset]
-        
+
         forget_dataloader = DataLoader(forget_dataset, batch_size=32, shuffle=True)
         return forget_dataloader
 
 
 class UnlearnCifar10(UnlearningDataset):
     ## Dictionary to map CIFAR-10 labels to class names
-    #0: 'Airplane',
-    #1: 'Automobile',
-    #2: 'Bird',
-    #3: 'Cat',
-    #4: 'Deer',
-    #5: 'Dog',
-    #6: 'Frog',
-    #7: 'Horse',
-    #8: 'Ship',
-    #9: 'Truck'
+    # 0: 'Airplane',
+    # 1: 'Automobile',
+    # 2: 'Bird',
+    # 3: 'Cat',
+    # 4: 'Deer',
+    # 5: 'Dog',
+    # 6: 'Frog',
+    # 7: 'Horse',
+    # 8: 'Ship',
+    # 9: 'Truck'
 
-    def __init__(self, unlearning_ratio=0.1, split=[0.7, 0.2, 0.1], transform=None, class_to_forget=None):
+    def __init__(
+        self,
+        split=[0.7, 0.2, 0.1],
+        transform=None,
+        unlearning_ratio=None,
+        class_to_forget=None,
+    ):
 
         train = datasets.CIFAR10(
             root="./data", train=True, download=True, transform=None
@@ -122,12 +141,18 @@ class UnlearnCifar10(UnlearningDataset):
             unlearning_ratio=unlearning_ratio,
             split=split,
             transform=transform,
-            class_to_forget=class_to_forget
+            class_to_forget=class_to_forget,
         )
 
 
 class UnlearnCifar100(UnlearningDataset):
-    def __init__(self, unlearning_ratio=0.1, split=[0.7, 0.2, 0.1], transform=None):
+    def __init__(
+        self,
+        split=[0.7, 0.2, 0.1],
+        transform=None,
+        unlearning_ratio=None,
+        class_to_forget=None,
+    ):
 
         train = datasets.CIFAR100(
             root="./data", train=True, download=True, transform=None
@@ -147,11 +172,18 @@ class UnlearnCifar100(UnlearningDataset):
             unlearning_ratio=unlearning_ratio,
             split=split,
             transform=transform,
+            class_to_forget=class_to_forget,
         )
 
 
 class UnlearnSVNH(UnlearningDataset):
-    def __init__(self, unlearning_ratio=0.1, split=[0.7, 0.2, 0.1], transform=None):
+    def __init__(
+        self,
+        split=[0.7, 0.2, 0.1],
+        transform=None,
+        unlearning_ratio=None,
+        class_to_forget=None,
+    ):
 
         test_split = split[2]
         self.data = datasets.SVHN(root="./data", download=True, transform=None)
@@ -166,6 +198,7 @@ class UnlearnSVNH(UnlearningDataset):
             unlearning_ratio=unlearning_ratio,
             split=split,
             transform=transform,
+            class_to_forget=class_to_forget,
         )
 
 
