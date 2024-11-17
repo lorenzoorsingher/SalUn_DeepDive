@@ -119,6 +119,12 @@ if __name__ == "__main__":
 
     model, config, transform = get_model(MODEL, len(classes), True)
 
+    config = {
+        "model": MODEL,
+        "dataset": DSET,
+        "nclasses": len(classes),
+    }
+
     model = model.to(DEVICE)
     dataset.set_transform(transform)
 
@@ -133,10 +139,7 @@ if __name__ == "__main__":
         wandb.init(
             project="TrendsAndApps",
             name=run_name,
-            config={
-                "model": MODEL,
-                "dataset": DSET,
-            },
+            config=config,
         )
 
     best_acc = 0
