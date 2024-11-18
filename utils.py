@@ -15,7 +15,8 @@ def get_model(model_name: str, num_classes: int, pretrained: bool = True):
 
 
 def load_checkpoint(path):
-    model_savefile = torch.load(path, weights_only=False)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model_savefile = torch.load(path, weights_only=False, map_location=device)
     state_dict = model_savefile["model"]
     config = model_savefile["config"]
     opt = model_savefile["optimizer"]
