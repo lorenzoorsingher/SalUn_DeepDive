@@ -157,6 +157,7 @@ if __name__ == "__main__":
     model = model.to(DEVICE)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=LR)
+    cosine_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer,T_max=EPOCHS,eta_min=1e-3)
     criterion = torch.nn.CrossEntropyLoss()
 
     model_savefile = {
@@ -234,6 +235,7 @@ if __name__ == "__main__":
                     if name in mask:
                         param.grad *= mask[name]
             optimizer.step()
+            cosine_scheduler.step()
             optimizer.zero_grad()
 
         model_savepath = f"{SAVE_PATH}{MODEL}_{DSET}_best_RL.pt"
