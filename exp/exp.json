@@ -1,0 +1,10 @@
+[
+  {
+    "checkpoint": "checkpoints/resnet18_cifar10_best.pt",
+    "class_to_forget": 0,
+    "unlearning_rate": 0.1,
+    "load_mask": false,
+    "use_mask": true,
+    "lr": 0.001
+  }
+]
