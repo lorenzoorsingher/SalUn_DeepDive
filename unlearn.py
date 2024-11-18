@@ -60,6 +60,7 @@ if __name__ == "__main__":
     LR = 0.001
 
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    
 
     if LOG:
         load_dotenv()
@@ -93,6 +94,13 @@ if __name__ == "__main__":
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
     criterion = torch.nn.CrossEntropyLoss()
+
+    model_savefile = {
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "config": config,
+            }
+    
 
     if LOG:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -142,6 +150,13 @@ if __name__ == "__main__":
 
             optimizer.step()
             optimizer.zero_grad()
+            model_savepath = f"{SAVE_PATH}{MODEL}_{DSET}_best_RL.pt"
+            model_savefile = {
+                    "model": model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                    "config": config,
+                }   
+            torch.save(model_savefile, model_savepath)
 
         ret_acc, for_acc = eval_unlearning(model, test_loader, forget_loader, DEVICE)
         print(f"Retain: {round(ret_acc,2)}, Forget: {round(for_acc,2)}")
