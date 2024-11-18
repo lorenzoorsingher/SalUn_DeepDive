@@ -92,15 +92,6 @@ class UnlearningDataset(Dataset):
     def set_transform(self, transform):
         self.transform = transform
 
-    def get_forget_dataLoader(self):
-        forget_idxs = self.FORGET
-        forget_dataset = [self.data[i] for i in forget_idxs]
-        transform = transforms.Compose([transforms.ToTensor()])
-        forget_dataset = [(transform(image), label) for image, label in forget_dataset]
-
-        forget_dataloader = DataLoader(forget_dataset, batch_size=32, shuffle=True)
-        return forget_dataloader
-
 
 class UnlearnCifar10(UnlearningDataset):
     ## Dictionary to map CIFAR-10 labels to class names
@@ -200,6 +191,44 @@ class UnlearnSVNH(UnlearningDataset):
             transform=transform,
             class_to_forget=class_to_forget,
         )
+
+
+def get_dataloaders(
+    dataname,
+    transform,
+    unlr=0,
+    cf=None,
+    split=[0.7, 0.2, 0.1],
+    batch_s=32,
+):
+
+    if dataname == "cifar10":
+        dataclass = UnlearnCifar10
+    elif dataname == "cifar100":
+        dataclass = UnlearnCifar100
+    elif dataname == "svnh":
+        dataclass = UnlearnSVNH
+
+    dataset = dataclass(
+        split=split,
+        transform=transform,
+        class_to_forget=cf,
+        unlearning_ratio=unlr,
+    )
+
+    train_set = Subset(dataset, dataset.TRAIN)
+    val_set = Subset(dataset, dataset.VAL)
+    test_set = Subset(dataset, dataset.TEST)
+    forget_set = Subset(dataset, dataset.FORGET)
+    retain_set = Subset(dataset, dataset.RETAIN)
+
+    train_l = DataLoader(train_set, batch_size=batch_s, shuffle=True, num_workers=8)
+    val_l = DataLoader(val_set, batch_size=batch_s, shuffle=False, num_workers=8)
+    test_l = DataLoader(test_set, batch_size=batch_s, shuffle=False, num_workers=8)
+    forget_l = DataLoader(forget_set, batch_size=batch_s, shuffle=False, num_workers=8)
+    retain_l = DataLoader(retain_set, batch_size=batch_s, shuffle=False, num_workers=8)
+
+    return train_l, val_l, test_l, forget_l, retain_l
 
 
 if __name__ == "__main__":
