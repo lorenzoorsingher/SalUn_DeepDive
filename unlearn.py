@@ -12,14 +12,12 @@ from datasets import UnlearnCifar10, UnlearnCifar100, UnlearnSVNH
 from utils import get_model, compute_topk, load_checkpoint
 
 
-def eval_unlearning(model, test_loader, forget_loader, DEVICE):
+def eval_unlearning(model, loaders, names, DEVICE):
 
     model.eval()
-
-    retain_acc = 0
-    forget_acc = 0
-
-    for loader, desc in zip([test_loader, forget_loader], ["Retain", "Forget"]):
+    tot_acc = 0
+    accs = {}
+    for loader, name in zip(loaders, names):
 
         for data in tqdm(loader):
 
@@ -32,15 +30,12 @@ def eval_unlearning(model, test_loader, forget_loader, DEVICE):
 
             acc = compute_topk(target, output, 1)
 
-            if desc == "Retain":
-                retain_acc += acc
-            else:
-                forget_acc += acc
+            tot_acc += acc
 
-    retain_acc /= len(test_loader.dataset)
-    forget_acc /= len(forget_loader.dataset)
+        tot_acc /= len(loader.dataset)
+        accs[name] = tot_acc
+    return accs
 
-    return retain_acc, forget_acc
 
 def compute_mask(model, forget_loader, unlearn_lr, saliency_threshold=0.5, device=None):
     if device is None:
@@ -55,10 +50,13 @@ def compute_mask(model, forget_loader, unlearn_lr, saliency_threshold=0.5, devic
     for name, param in model.named_parameters():
         gradients[name] = 0
 
-
     print("Computing Gradients...")
     for batch_idx, batch in enumerate(tqdm(forget_loader, desc="Processing batches")):
-        image, target = batch[0].to(device), batch[1].to(device)
+        # breakpoint()
+
+        image = batch["image"].to(device)
+        target = batch["label"].to(device)
+
         output = model(image)
         loss = -criterion(output, target)  # Negative loss for unlearning
 
@@ -76,7 +74,7 @@ def compute_mask(model, forget_loader, unlearn_lr, saliency_threshold=0.5, devic
 
     sorted_dict_positions = {}
     hard_dict = {}
-    all_elements = - torch.cat([tensor.flatten() for tensor in gradients.values()])
+    all_elements = -torch.cat([tensor.flatten() for tensor in gradients.values()])
 
     threshold_index = int(len(all_elements) * saliency_threshold)
     # Calculate positions of all elements
@@ -85,23 +83,22 @@ def compute_mask(model, forget_loader, unlearn_lr, saliency_threshold=0.5, devic
 
     print("Computing Saliency Mask...")
     start_index = 0
-    for key, tensor in tqdm(gradients.items(),desc="Processing tensors"):
-            num_elements = tensor.numel()
-            # tensor_positions = positions[start_index: start_index + num_elements]
-            tensor_ranks = ranks[start_index : start_index + num_elements]
+    for key, tensor in tqdm(gradients.items(), desc="Processing tensors"):
+        num_elements = tensor.numel()
+        # tensor_positions = positions[start_index: start_index + num_elements]
+        tensor_ranks = ranks[start_index : start_index + num_elements]
 
-            sorted_positions = tensor_ranks.reshape(tensor.shape)
-            sorted_dict_positions[key] = sorted_positions
+        sorted_positions = tensor_ranks.reshape(tensor.shape)
+        sorted_dict_positions[key] = sorted_positions
 
-            # Set the corresponding elements to 1
-            threshold_tensor = torch.zeros_like(tensor_ranks)
-            threshold_tensor[tensor_ranks < threshold_index] = 1
-            threshold_tensor = threshold_tensor.reshape(tensor.shape)
-            hard_dict[key] = threshold_tensor
-            start_index += num_elements  # More efficient masking
+        # Set the corresponding elements to 1
+        threshold_tensor = torch.zeros_like(tensor_ranks)
+        threshold_tensor[tensor_ranks < threshold_index] = 1
+        threshold_tensor = threshold_tensor.reshape(tensor.shape)
+        hard_dict[key] = threshold_tensor
+        start_index += num_elements  # More efficient masking
 
     return hard_dict
-
 
 
 if __name__ == "__main__":
@@ -113,7 +110,7 @@ if __name__ == "__main__":
     LOAD_MASK = False
     MASK_PATH = f"checkpoints/mask_resnet18_cifar10_{CLASS_TO_FORGET}.pt"
     USE_MASK = True
-    
+
     model, config, transform, opt = load_checkpoint(LOAD)
 
     DSET = config["dataset"]
@@ -121,9 +118,11 @@ if __name__ == "__main__":
 
     PAT = 4
     EPOCHS = 10
-    LR = 0.001
-    
+    LR = 0.1
+
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+    print(f"Device: {DEVICE}")
     MASK_THRESHOLD = 0.5
     if LOG:
         load_dotenv()
@@ -133,7 +132,9 @@ if __name__ == "__main__":
     split = [0.7, 0.2, 0.1]
 
     if DSET == "cifar10":
-        dataset = UnlearnCifar10(split=split, transform=transform, class_to_forget=CLASS_TO_FORGET)
+        dataset = UnlearnCifar10(
+            split=split, transform=transform, class_to_forget=CLASS_TO_FORGET
+        )
     elif DSET == "cifar100":
         dataset = UnlearnCifar100(split=split, transform=transform)
     elif DSET == "svnh":
@@ -147,28 +148,35 @@ if __name__ == "__main__":
     forget_set = Subset(dataset, dataset.FORGET)
     retain_set = Subset(dataset, dataset.RETAIN)
 
-    train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
-    # val_loader = DataLoader(val_set, batch_size=32, shuffle=False)
-    test_loader = DataLoader(test_set, batch_size=32, shuffle=False)
-    forget_loader = DataLoader(forget_set, batch_size=32, shuffle=False)
-    retain_loader = DataLoader(retain_set, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_set, batch_size=32, shuffle=True, num_workers=8)
+    # val_loader = DataLoader(val_set, batch_size=32, shuffle=False, num_workers=8)
+    test_loader = DataLoader(test_set, batch_size=32, shuffle=False, num_workers=8)
+    forget_loader = DataLoader(forget_set, batch_size=32, shuffle=False, num_workers=8)
+    retain_loader = DataLoader(retain_set, batch_size=32, shuffle=False, num_workers=8)
 
     model = model.to(DEVICE)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
+    optimizer = torch.optim.SGD(model.parameters(), lr=LR)
     criterion = torch.nn.CrossEntropyLoss()
 
     model_savefile = {
-                "model": model.state_dict(),
-                "optimizer": optimizer.state_dict(),
-                "config": config,
-            }
-    if(LOAD_MASK == False):
-        mask = compute_mask(model, forget_loader, unlearn_lr=LR, saliency_threshold=MASK_THRESHOLD, device=DEVICE)
+        "model": model.state_dict(),
+        "optimizer": optimizer.state_dict(),
+        "config": config,
+    }
+    if LOAD_MASK == False:
+        mask = compute_mask(
+            model,
+            forget_loader,
+            unlearn_lr=LR,
+            saliency_threshold=MASK_THRESHOLD,
+            device=DEVICE,
+        )
         torch.save(mask, MASK_PATH)
     else:
         mask = torch.load(MASK_PATH)
-    
+
+    # breakpoint()
 
     if LOG:
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -182,8 +190,13 @@ if __name__ == "__main__":
             },
         )
 
-    ret_acc, for_acc = eval_unlearning(model, test_loader, forget_loader, DEVICE)
-    print(f"Retain: {round(ret_acc,2)}, Forget: {round(for_acc,2)}")
+    accs = eval_unlearning(
+        model,
+        [test_loader, forget_loader],
+        ["test", "forget"],
+        DEVICE,
+    )
+    print(f"Retain: {round(accs['test'],2)}, Forget: {round(accs['forget'],2)}")
 
     print("[MAIN] Unlearning model")
 
@@ -222,13 +235,19 @@ if __name__ == "__main__":
                         param.grad *= mask[name]
             optimizer.step()
             optimizer.zero_grad()
-            model_savepath = f"{SAVE_PATH}{MODEL}_{DSET}_best_RL.pt"
-            model_savefile = {
-                    "model": model.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                    "config": config,
-                }   
-            torch.save(model_savefile, model_savepath)
 
-        ret_acc, for_acc = eval_unlearning(model, test_loader, forget_loader, DEVICE)
+        model_savepath = f"{SAVE_PATH}{MODEL}_{DSET}_best_RL.pt"
+        model_savefile = {
+            "model": model.state_dict(),
+            "optimizer": optimizer.state_dict(),
+            "config": config,
+        }
+        torch.save(model_savefile, model_savepath)
+
+        ret_acc, for_acc = eval_unlearning(
+            model,
+            [test_loader, forget_loader],
+            ["test", "forget"],
+            DEVICE,
+        )
         print(f"Retain: {round(ret_acc,2)}, Forget: {round(for_acc,2)}")
