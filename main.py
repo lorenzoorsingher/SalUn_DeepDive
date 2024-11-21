@@ -213,3 +213,4 @@ if __name__ == "__main__":
 
         print(f"Best test: {best_test}")
         print(f"Best forget: {best_forget}")
+        wandb.finish()
