@@ -39,6 +39,14 @@ def grad_ascent(model, image, target, idx, criterion, loader):
     return loss
 
 
+def retrain(model, image, target, idx, criterion, loader):
+    output = model(image)
+    loss = criterion(output, target)
+    loss = loss.mean()
+
+    return loss
+
+
 if __name__ == "__main__":
 
     args, args_dict = get_args()
@@ -50,12 +58,12 @@ if __name__ == "__main__":
 
     default = {
         "checkpoint": "checkpoints/resnet18_cifar10_best.pt",
-        "class_to_forget": 0,
+        "class_to_forget": None,
         "unlearning_rate": None,
         "load_mask": False,
         "use_mask": True,
         "mask_thr": 0.5,
-        "lr": 0.001,
+        "lr": 0.01,
         "epochs": 10,
         "method": "rl",
     }
@@ -125,47 +133,83 @@ if __name__ == "__main__":
             )
 
         if LOG:
-            run_name = gen_run_name()
+            run_name = METHOD + "_" + gen_run_name()
             config = {**config, **settings}
             wandb.init(project="TrendsAndApps", name=run_name, config=config)
 
         print("[MAIN] Unlearning model")
 
-    for epoch in range(EPOCHS):
+        best_test_acc = 0
+        best_test = {}
+        best_forget_acc = 100
+        best_forget = {}
 
-        print(f"Epoch {epoch}")
+        for epoch in range(EPOCHS):
 
-        model.train()
+            print(f"Epoch {epoch}")
 
-        for data in tqdm(train_loader):
+            model.train()
 
-            image = data["image"]
-            target = data["label"]
-            idx = data["idx"]
+            for data in tqdm(train_loader):
 
-            image = image.to(DEVICE)
-            target = target.to(DEVICE)
-            idx = idx.to(DEVICE)
+                image = data["image"]
+                target = data["label"]
+                idx = data["idx"]
 
-            if METHOD == "rl":
-                loss = rand_label(model, image, target, idx, criterion, train_loader)
-            elif METHOD == "ga":
-                loss = grad_ascent(model, image, target, idx, criterion, train_loader)
+                image = image.to(DEVICE)
+                target = target.to(DEVICE)
+                idx = idx.to(DEVICE)
 
-            loss.backward()
+                if METHOD == "rl":
+                    loss = rand_label(
+                        model, image, target, idx, criterion, train_loader
+                    )
+                elif METHOD == "ga":
+                    loss = grad_ascent(
+                        model, image, target, idx, criterion, train_loader
+                    )
+                elif METHOD == "retrain":
+                    loss = retrain(model, image, target, idx, criterion, train_loader)
+                loss.backward()
 
-            if USE_MASK:
-                for name, param in model.named_parameters():
-                    if name in mask:
-                        param.grad *= mask[name]
+                if USE_MASK:
+                    for name, param in model.named_parameters():
+                        if name in mask:
+                            param.grad *= mask[name]
 
-            optimizer.step()
-            optimizer.zero_grad()
+                optimizer.step()
+                optimizer.zero_grad()
 
-        accs = eval_unlearning(
-            model,
-            [test_loader, forget_loader],
-            ["test", "forget"],
-            DEVICE,
-        )
-        print(f"Test: {round(accs['test'],2)}, Forget: {round(accs['forget'],2)}")
+            accs = eval_unlearning(
+                model,
+                [test_loader, forget_loader, retain_loader],
+                ["test", "forget", "retain"],
+                DEVICE,
+            )
+
+            test_acc = accs["test"]
+            forget_acc = accs["forget"]
+            retain_acc = accs["retain"]
+
+            if test_acc > best_test_acc:
+                best_test_acc = test_acc
+                best_test = accs
+            if forget_acc < best_forget_acc:
+                best_forget_acc = forget_acc
+                best_forget = accs
+
+            print(
+                f"Test: {round(test_acc,2)}, Forget: {round(forget_acc,2)}, Retain: {round(retain_acc,2)}"
+            )
+
+            if LOG:
+                wandb.log(
+                    {
+                        "test": test_acc,
+                        "forget": forget_acc,
+                        "retain": retain_acc,
+                    }
+                )
+
+        print(f"Best test: {best_test}")
+        print(f"Best forget: {best_forget}")
