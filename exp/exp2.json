@@ -1,0 +1,44 @@
+[
+  {
+    "class_to_forget": 0,
+    "use_mask": false,
+    "epochs": 10,
+    "method": "rl"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": true,
+    "epochs": 10,
+    "method": "rl"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": false,
+    "epochs": 10,
+    "method": "ga"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": true,
+    "epochs": 10,
+    "method": "ga"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": false,
+    "epochs": 10,
+    "method": "ga_small"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": true,
+    "epochs": 10,
+    "method": "ga_small"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": false,
+    "epochs": 20,
+    "method": "retrain"
+  }
+]

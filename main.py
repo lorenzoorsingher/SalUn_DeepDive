@@ -1,13 +1,15 @@
 import json
 import os
 from dotenv import load_dotenv
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import roc_auc_score
 import torch
 from tqdm import tqdm
 import wandb
 
-from utils import get_args, load_checkpoint, gen_run_name
+from utils import get_args, load_checkpoint, gen_run_name, compute_topk
 from datasets import get_dataloaders
-from unlearn import compute_mask, eval_unlearning
+from unlearn import compute_mask
 
 
 def rand_label(model, image, target, idx, criterion, loader):
@@ -39,12 +41,88 @@ def grad_ascent(model, image, target, idx, criterion, loader):
     return loss
 
 
+def grad_ascent_small(model, image, target, idx, criterion, loader):
+    output = model(image)
+    loss = -criterion(output, target)
+    loss = loss.mean()
+
+    return loss
+
+
 def retrain(model, image, target, idx, criterion, loader):
     output = model(image)
     loss = criterion(output, target)
     loss = loss.mean()
 
     return loss
+
+
+def compute_basic_mia(retain_losses, forget_losses, val_losses, test_losses):
+    train_loss = (
+        torch.cat((retain_losses, val_losses), dim=0).unsqueeze(1).cpu().numpy()
+    )
+    train_target = torch.cat(
+        (torch.ones(retain_losses.size(0)), torch.zeros(val_losses.size(0))), dim=0
+    ).numpy()
+    test_loss = (
+        torch.cat((forget_losses, test_losses), dim=0).unsqueeze(1).cpu().numpy()
+    )
+    test_target = (
+        torch.cat((torch.ones(forget_losses.size(0)), torch.zeros(test_losses.size(0))))
+        .cpu()
+        .numpy()
+    )
+
+    best_auc = 0
+    best_acc = 0
+    for n_est in [20, 50, 100]:
+        for criterion in ["gini", "entropy"]:
+            mia_model = RandomForestClassifier(
+                n_estimators=n_est, criterion=criterion, n_jobs=8, random_state=0
+            )
+            mia_model.fit(train_loss, train_target)
+
+            y_hat = mia_model.predict_proba(test_loss)[:, 1]
+            auc = roc_auc_score(test_target, y_hat) * 100
+
+            y_hat = mia_model.predict(forget_losses.unsqueeze(1).cpu().numpy()).mean()
+            acc = (1 - y_hat) * 100
+
+            if acc > best_acc:
+                best_acc = acc
+                best_auc = auc
+
+    return best_auc, best_acc
+
+
+def eval_unlearning(model, loaders, names, criterion, DEVICE):
+
+    model.eval()
+    tot_acc = 0
+    accs = {}
+    losses = {}
+    for loader, name in zip(loaders, names):
+
+        losses[name] = []
+        for data in tqdm(loader):
+
+            image = data["image"]
+            target = data["label"]
+            image = image.to(DEVICE)
+            target = target.to(DEVICE)
+
+            output = model(image)
+            loss = criterion(output, target)
+
+            losses[name].append(loss.mean().item())
+
+            acc = compute_topk(target, output, 1)
+
+            tot_acc += acc
+
+        tot_acc /= len(loader.dataset)
+        accs[name] = tot_acc
+    return accs, losses
 
 
 if __name__ == "__main__":
@@ -137,6 +215,33 @@ if __name__ == "__main__":
             config = {**config, **settings}
             wandb.init(project="TrendsAndApps", name=run_name, config=config)
 
+        print("[MAIN] Evaluating model")
+        accs, losses = eval_unlearning(
+            model,
+            [test_loader, forget_loader, retain_loader, val_loader],
+            ["test", "forget", "retain", "val"],
+            criterion,
+            DEVICE,
+        )
+
+        print("[MAIN] Computing MIA")
+        mia_auc, mia_acc = compute_basic_mia(
+            torch.tensor(losses["retain"]),
+            torch.tensor(losses["forget"]),
+            torch.tensor(losses["val"]),
+            torch.tensor(losses["test"]),
+        )
+        if LOG:
+            wandb.log(
+                {
+                    "base_test": accs["test"],
+                    "base_forget": accs["forget"],
+                    "base_retain": accs["retain"],
+                    "base_val": accs["val"],
+                    "base_mia_auc": mia_auc,
+                    "base_mia_acc": mia_acc,
+                }
+            )
         print("[MAIN] Unlearning model")
 
         best_test_acc = 0
@@ -168,6 +273,10 @@ if __name__ == "__main__":
                     loss = grad_ascent(
                         model, image, target, idx, criterion, train_loader
                     )
+                elif METHOD == "ga_small":
+                    loss = grad_ascent_small(
+                        model, image, target, idx, criterion, forget_loader
+                    )
                 elif METHOD == "retrain":
                     loss = retrain(model, image, target, idx, criterion, retain_loader)
                 loss.backward()
@@ -180,16 +289,26 @@ if __name__ == "__main__":
                 optimizer.step()
                 optimizer.zero_grad()
 
-            accs = eval_unlearning(
+            print("[MAIN] Evaluating model")
+            accs, losses = eval_unlearning(
                 model,
-                [test_loader, forget_loader, retain_loader],
-                ["test", "forget", "retain"],
+                [test_loader, forget_loader, retain_loader, val_loader],
+                ["test", "forget", "retain", "val"],
+                criterion,
                 DEVICE,
             )
 
+            print("[MAIN] Computing MIA")
+            mia_auc, mia_acc = compute_basic_mia(
+                torch.tensor(losses["retain"]),
+                torch.tensor(losses["forget"]),
+                torch.tensor(losses["val"]),
+                torch.tensor(losses["test"]),
+            )
             test_acc = accs["test"]
             forget_acc = accs["forget"]
             retain_acc = accs["retain"]
+            val_acc = accs["val"]
 
             if test_acc > best_test_acc:
                 best_test_acc = test_acc
@@ -198,9 +317,9 @@ if __name__ == "__main__":
                 best_forget_acc = forget_acc
                 best_forget = accs
 
-            print(
-                f"Test: {round(test_acc,2)}, Forget: {round(forget_acc,2)}, Retain: {round(retain_acc,2)}"
-            )
+            for key, value in accs.items():
+                print(f"{key}: {round(value,2)}")
+            print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
 
             if LOG:
                 wandb.log(
@@ -208,6 +327,9 @@ if __name__ == "__main__":
                         "test": test_acc,
                         "forget": forget_acc,
                         "retain": retain_acc,
+                        "val": val_acc,
+                        "mia_auc": mia_auc,
+                        "mia_acc": mia_acc,
                     }
                 )
 
