@@ -3,6 +3,7 @@ import os
 import torch
 import numpy as np
 import wandb
+import argparse
 
 from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
@@ -71,16 +72,33 @@ def test_loop(model, loader, criterion, device):
     return np.mean(losses), top1_acc, top5_acc
 
 
+def get_args():
+
+    parser = argparse.ArgumentParser(description="Train model")
+
+    parser.add_argument("--model", type=str, default="resnet18")
+    parser.add_argument("--dataset", type=str, default="cifar10")
+    parser.add_argument("--comment", type=str, default="pretrained")
+
+    args = parser.parse_args()
+
+    return args
+
+
 if __name__ == "__main__":
+
+    args = get_args()
 
     SAVE_PATH = "checkpoints/"
     LOG = True
 
     # resnet18 vit_tiny_patch16_224 ... use timm.list_models() to get all models
-    MODEL = "resnet18"
+    MODEL = args.model
 
     # cifar10 cifar100 svnh ...
-    DSET = "cifar10"
+    DSET = args.dataset
+
+    comment = args.comment
 
     PAT = 4
     EPOCHS = 100
@@ -97,11 +115,11 @@ if __name__ == "__main__":
     transform = None
 
     if DSET == "cifar10":
-        dataset = UnlearnCifar10(split=split, transform=transform)
+        dataset = UnlearnCifar10(split=split, transform=transform, unlearning_ratio=0)
     elif DSET == "cifar100":
-        dataset = UnlearnCifar100(split=split, transform=transform)
+        dataset = UnlearnCifar100(split=split, transform=transform, unlearning_ratio=0)
     elif DSET == "svnh":
-        dataset = UnlearnSVNH(split=split, transform=transform)
+        dataset = UnlearnSVNH(split=split, transform=transform, unlearning_ratio=0)
 
     classes = dataset.classes
 
@@ -173,7 +191,7 @@ if __name__ == "__main__":
                 "config": config,
             }
 
-            model_savepath = f"{SAVE_PATH}{MODEL}_{DSET}_best.pt"
+            model_savepath = f"{SAVE_PATH}{MODEL}_{DSET}_{comment}_best.pt"
 
             torch.save(model_savefile, model_savepath)
 

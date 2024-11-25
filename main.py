@@ -169,7 +169,7 @@ if __name__ == "__main__":
                         model, image, target, idx, criterion, train_loader
                     )
                 elif METHOD == "retrain":
-                    loss = retrain(model, image, target, idx, criterion, train_loader)
+                    loss = retrain(model, image, target, idx, criterion, retain_loader)
                 loss.backward()
 
                 if USE_MASK:
