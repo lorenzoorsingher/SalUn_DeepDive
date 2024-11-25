@@ -15,24 +15,28 @@
     "class_to_forget": 0,
     "use_mask": false,
     "epochs": 10,
+    "lr": 0.001,
     "method": "ga"
   },
   {
     "class_to_forget": 0,
     "use_mask": true,
     "epochs": 10,
+    "lr": 0.001,
     "method": "ga"
   },
   {
     "class_to_forget": 0,
     "use_mask": false,
     "epochs": 10,
+    "lr": 0.001,
     "method": "ga_small"
   },
   {
     "class_to_forget": 0,
     "use_mask": true,
     "epochs": 10,
+    "lr": 0.001,
     "method": "ga_small"
   },
   {

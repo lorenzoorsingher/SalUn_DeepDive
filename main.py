@@ -84,7 +84,7 @@ def compute_basic_mia(retain_losses, forget_losses, val_losses, test_losses):
 
             y_hat = mia_model.predict_proba(test_loss)[:, 1]
             auc = roc_auc_score(test_target, y_hat) * 100
-
+            # breakpoint()
             y_hat = mia_model.predict(forget_losses.unsqueeze(1).cpu().numpy()).mean()
             acc = (1 - y_hat) * 100
 
@@ -223,6 +223,7 @@ if __name__ == "__main__":
             criterion,
             DEVICE,
         )
+        accs["forget"] = 1 - accs["forget"]
 
         print("[MAIN] Computing MIA")
         mia_auc, mia_acc = compute_basic_mia(
@@ -297,6 +298,7 @@ if __name__ == "__main__":
                 criterion,
                 DEVICE,
             )
+            accs["forget"] = 1 - accs["forget"]
 
             print("[MAIN] Computing MIA")
             mia_auc, mia_acc = compute_basic_mia(
@@ -313,7 +315,7 @@ if __name__ == "__main__":
             if test_acc > best_test_acc:
                 best_test_acc = test_acc
                 best_test = accs
-            if forget_acc < best_forget_acc:
+            if forget_acc > best_forget_acc:
                 best_forget_acc = forget_acc
                 best_forget = accs
 
