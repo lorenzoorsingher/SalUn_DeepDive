@@ -7,7 +7,7 @@ import torch
 from tqdm import tqdm
 import wandb
 
-from utils import get_args, load_checkpoint, gen_run_name, compute_topk
+from utils import get_args, load_checkpoint, gen_run_name, compute_topk, get_model
 from datasets import get_dataloaders
 from unlearn import compute_mask
 
@@ -196,8 +196,11 @@ if __name__ == "__main__":
             retain_loader,
         ) = get_dataloaders(DSET, transform, unlr=UNLR, cf=CF)
 
-        model = model.to(DEVICE)
+        if METHOD == "retrain":
+            classes = train_loader.dataset.dataset.classes
+            model, _, _ = get_model(MODEL, len(classes), True)
 
+        model = model.to(DEVICE)
         optimizer = torch.optim.SGD(model.parameters(), lr=LR)
         criterion = torch.nn.CrossEntropyLoss(reduction="none")
 

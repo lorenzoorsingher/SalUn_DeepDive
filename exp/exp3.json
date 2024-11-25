@@ -50,7 +50,7 @@
   {
     "class_to_forget": 0,
     "use_mask": false,
-    "epochs": 10,
+    "epochs": 20,
     "lr": 0.1,
     "method": "retrain"
   }
