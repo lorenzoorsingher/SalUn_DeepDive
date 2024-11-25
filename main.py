@@ -201,6 +201,11 @@ if __name__ == "__main__":
         optimizer = torch.optim.SGD(model.parameters(), lr=LR)
         criterion = torch.nn.CrossEntropyLoss(reduction="none")
 
+        if LOG:
+            run_name = METHOD + "_" + gen_run_name()
+            config = {**config, **settings}
+            wandb.init(project="TrendsAndApps", name=run_name, config=config)
+
         if USE_MASK:
             mask = compute_mask(
                 model,
@@ -209,11 +214,6 @@ if __name__ == "__main__":
                 saliency_threshold=MASK_THR,
                 device=DEVICE,
             )
-
-        if LOG:
-            run_name = METHOD + "_" + gen_run_name()
-            config = {**config, **settings}
-            wandb.init(project="TrendsAndApps", name=run_name, config=config)
 
         print("[MAIN] Evaluating model")
         accs, losses = eval_unlearning(
@@ -267,19 +267,19 @@ if __name__ == "__main__":
                 idx = idx.to(DEVICE)
 
                 if METHOD == "rl":
-                    loss = rand_label(
-                        model, image, target, idx, criterion, train_loader
-                    )
+                    method = rand_label
+                    loader = train_loader
                 elif METHOD == "ga":
-                    loss = grad_ascent(
-                        model, image, target, idx, criterion, train_loader
-                    )
+                    method = grad_ascent
+                    loader = train_loader
                 elif METHOD == "ga_small":
-                    loss = grad_ascent_small(
-                        model, image, target, idx, criterion, forget_loader
-                    )
+                    method = grad_ascent_small
+                    loader = forget_loader
                 elif METHOD == "retrain":
-                    loss = retrain(model, image, target, idx, criterion, retain_loader)
+                    method = retrain
+                    loader = retain_loader
+
+                loss = method(model, image, target, idx, criterion, loader)
                 loss.backward()
 
                 if USE_MASK:
