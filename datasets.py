@@ -77,9 +77,13 @@ class UnlearningDataset(Dataset):
             ]
             self.RETAIN = list(set(self.TRAIN) - set(self.FORGET))
 
-            # Remove the class to forget from the test set
+            # Remove the class to forget from the test set and val set
             self.TEST = [
                 idx for idx in self.TEST if self.data[idx][1] != self.class_to_forget
+            ]
+
+            self.VAL = [
+                idx for idx in self.VAL if self.data[idx][1] != self.class_to_forget
             ]
             print(
                 f"[DATASET] Forgetting {len(self.FORGET)} images from class {self.class_to_forget}"
