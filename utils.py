@@ -8,14 +8,16 @@ from timm.data.transforms_factory import create_transform
 
 
 def get_model(model_name: str, num_classes: int, pretrained: bool = True):
-    model = timm.create_model(model_name, num_classes=num_classes, pretrained=True)
+    model = timm.create_model(
+        model_name, num_classes=num_classes, pretrained=pretrained
+    )
     config = resolve_data_config({}, model=model)
     transform = create_transform(**config)
     return model, config, transform
 
 
 def load_checkpoint(path):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model_savefile = torch.load(path, weights_only=False, map_location=device)
     state_dict = model_savefile["model"]
     config = model_savefile["config"]

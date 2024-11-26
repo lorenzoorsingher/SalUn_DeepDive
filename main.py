@@ -104,7 +104,7 @@ def eval_unlearning(model, loaders, names, criterion, DEVICE):
     for loader, name in zip(loaders, names):
 
         losses[name] = []
-        for data in tqdm(loader):
+        for data in tqdm(loader, desc=name):
 
             image = data["image"]
             target = data["label"]
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         "load_mask": False,
         "use_mask": True,
         "mask_thr": 0.5,
-        "lr": 0.01,
+        "lr": 0.1,
         "epochs": 10,
         "method": "rl",
     }
@@ -198,7 +198,7 @@ if __name__ == "__main__":
 
         if METHOD == "retrain":
             classes = train_loader.dataset.dataset.classes
-            model, _, _ = get_model(MODEL, len(classes), True)
+            model, _, _ = get_model(MODEL, len(classes), False)
 
         model = model.to(DEVICE)
         optimizer = torch.optim.SGD(model.parameters(), lr=LR)
@@ -218,6 +218,8 @@ if __name__ == "__main__":
                 device=DEVICE,
             )
 
+        # -------------------------------------------------------------
+
         print("[MAIN] Evaluating model")
         accs, losses = eval_unlearning(
             model,
@@ -235,6 +237,13 @@ if __name__ == "__main__":
             torch.tensor(losses["val"]),
             torch.tensor(losses["test"]),
         )
+
+        for key, value in accs.items():
+            print(f"{key}: {round(value,2)}")
+        print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
+
+        # -------------------------------------------------------------
+
         if LOG:
             wandb.log(
                 {
@@ -253,13 +262,26 @@ if __name__ == "__main__":
         best_forget_acc = 100
         best_forget = {}
 
+        if METHOD == "rl":
+            method = rand_label
+            loader = train_loader
+        elif METHOD == "ga":
+            method = grad_ascent
+            loader = train_loader
+        elif METHOD == "ga_small":
+            method = grad_ascent_small
+            loader = forget_loader
+        elif METHOD == "retrain":
+            method = retrain
+            loader = retain_loader
+
         for epoch in range(EPOCHS):
 
             print(f"Epoch {epoch}")
 
             model.train()
 
-            for data in tqdm(train_loader):
+            for data in tqdm(loader):
 
                 image = data["image"]
                 target = data["label"]
@@ -268,19 +290,6 @@ if __name__ == "__main__":
                 image = image.to(DEVICE)
                 target = target.to(DEVICE)
                 idx = idx.to(DEVICE)
-
-                if METHOD == "rl":
-                    method = rand_label
-                    loader = train_loader
-                elif METHOD == "ga":
-                    method = grad_ascent
-                    loader = train_loader
-                elif METHOD == "ga_small":
-                    method = grad_ascent_small
-                    loader = forget_loader
-                elif METHOD == "retrain":
-                    method = retrain
-                    loader = retain_loader
 
                 loss = method(model, image, target, idx, criterion, loader)
                 loss.backward()
@@ -292,6 +301,8 @@ if __name__ == "__main__":
 
                 optimizer.step()
                 optimizer.zero_grad()
+
+            # -------------------------------------------------------------
 
             print("[MAIN] Evaluating model")
             accs, losses = eval_unlearning(
@@ -337,6 +348,8 @@ if __name__ == "__main__":
                         "mia_acc": mia_acc,
                     }
                 )
+
+            # -------------------------------------------------------------
 
         print(f"Best test: {best_test}")
         print(f"Best forget: {best_forget}")
