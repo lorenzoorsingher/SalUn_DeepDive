@@ -104,7 +104,7 @@ def eval_unlearning(model, loaders, names, criterion, DEVICE):
     for loader, name in zip(loaders, names):
 
         losses[name] = []
-        for data in tqdm(loader, desc=name):
+        for data in tqdm(loader, desc=f"{name}\t"):
 
             image = data["image"]
             target = data["label"]
@@ -205,8 +205,8 @@ if __name__ == "__main__":
         criterion = torch.nn.CrossEntropyLoss(reduction="none")
 
         if LOG:
-            run_name = METHOD + "_" + gen_run_name()
             config = {**config, **settings}
+            run_name = METHOD + "_" + gen_run_name(config)
             wandb.init(project="TrendsAndApps", name=run_name, config=config)
 
         if USE_MASK:

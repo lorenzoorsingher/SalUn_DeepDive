@@ -44,9 +44,10 @@ def compute_topk(labels, outputs, k):
     return topk
 
 
-def gen_run_name():
+def gen_run_name(config):
+    masked = "M_" if config["use_mask"] else ""
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_name = f"run_{timestamp}"
+    run_name = f"run_{masked}{timestamp}"
     return run_name
 
 
