@@ -144,6 +144,7 @@ if __name__ == "__main__":
         "lr": 0.1,
         "epochs": 10,
         "method": "rl",
+        "tag": None,
     }
 
     if LOAD == "":

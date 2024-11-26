@@ -1,0 +1,81 @@
+[
+  {
+    "class_to_forget": 0,
+    "use_mask": false,
+    "epochs": 10,
+    "method": "rl",
+    "tag": "forget_class"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": true,
+    "mask_thr": 0.2,
+    "epochs": 10,
+    "method": "rl",
+    "tag": "forget_class"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": true,
+    "mask_thr": 0.4,
+    "epochs": 10,
+    "method": "rl",
+    "tag": "forget_class"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": true,
+    "mask_thr": 0.6,
+    "epochs": 10,
+    "method": "rl",
+    "tag": "forget_class"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": true,
+    "mask_thr": 0.8,
+    "epochs": 10,
+    "method": "rl",
+    "tag": "forget_class"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": false,
+    "epochs": 10,
+    "lr": 0.0001,
+    "method": "ga",
+    "tag": "forget_class"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": true,
+    "epochs": 10,
+    "lr": 0.0001,
+    "method": "ga",
+    "tag": "forget_class"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": false,
+    "epochs": 10,
+    "lr": 0.0001,
+    "method": "ga_small",
+    "tag": "forget_class"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": true,
+    "epochs": 10,
+    "lr": 0.0001,
+    "method": "ga_small",
+    "tag": "forget_class"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": false,
+    "epochs": 30,
+    "lr": 0.1,
+    "method": "retrain",
+    "tag": "forget_class"
+  }
+]
