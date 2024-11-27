@@ -86,12 +86,14 @@ def compute_basic_mia(retain_losses, forget_losses, val_losses, test_losses):
             auc = roc_auc_score(test_target, y_hat) * 100
             # breakpoint()
             y_hat = mia_model.predict(forget_losses.unsqueeze(1).cpu().numpy()).mean()
+
+            # breakpoint()
             acc = (1 - y_hat) * 100
 
             if acc > best_acc:
                 best_acc = acc
                 best_auc = auc
-
+    # breakpoint()
     return best_auc, best_acc
 
 
@@ -104,7 +106,7 @@ def eval_unlearning(model, loaders, names, criterion, DEVICE):
     for loader, name in zip(loaders, names):
 
         losses[name] = []
-        for data in tqdm(loader, desc=f"{name}\t"):
+        for data in tqdm(loader):
 
             image = data["image"]
             target = data["label"]
@@ -260,7 +262,7 @@ if __name__ == "__main__":
 
         best_test_acc = 0
         best_test = {}
-        best_forget_acc = 100
+        best_forget_acc = 0
         best_forget = {}
 
         if METHOD == "rl":
@@ -288,9 +290,9 @@ if __name__ == "__main__":
                 target = data["label"]
                 idx = data["idx"]
 
-                image = image.to(DEVICE)
-                target = target.to(DEVICE)
-                idx = idx.to(DEVICE)
+                image = image.to(DEVICE, non_blocking=True)
+                target = target.to(DEVICE, non_blocking=True)
+                idx = idx.to(DEVICE, non_blocking=True)
 
                 loss = method(model, image, target, idx, criterion, loader)
                 loss.backward()

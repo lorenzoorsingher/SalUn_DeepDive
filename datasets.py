@@ -231,11 +231,21 @@ def get_dataloaders(
     forget_set = Subset(dataset, dataset.FORGET)
     retain_set = Subset(dataset, dataset.RETAIN)
 
-    train_l = DataLoader(train_set, batch_size=batch_s, shuffle=True, num_workers=8)
-    val_l = DataLoader(val_set, batch_size=batch_s, shuffle=False, num_workers=8)
-    test_l = DataLoader(test_set, batch_size=batch_s, shuffle=False, num_workers=8)
-    forget_l = DataLoader(forget_set, batch_size=batch_s, shuffle=False, num_workers=8)
-    retain_l = DataLoader(retain_set, batch_size=batch_s, shuffle=False, num_workers=8)
+    train_l = DataLoader(
+        train_set, batch_size=batch_s, shuffle=True, num_workers=8, pin_memory=True
+    )
+    val_l = DataLoader(
+        val_set, batch_size=batch_s, shuffle=False, num_workers=8, pin_memory=True
+    )
+    test_l = DataLoader(
+        test_set, batch_size=batch_s, shuffle=False, num_workers=8, pin_memory=True
+    )
+    forget_l = DataLoader(
+        forget_set, batch_size=batch_s, shuffle=False, num_workers=8, pin_memory=True
+    )
+    retain_l = DataLoader(
+        retain_set, batch_size=batch_s, shuffle=False, num_workers=8, pin_memory=True
+    )
 
     return train_l, val_l, test_l, forget_l, retain_l
 
