@@ -110,8 +110,8 @@ def eval_unlearning(model, loaders, names, criterion, DEVICE):
 
             image = data["image"]
             target = data["label"]
-            image = image.to(DEVICE)
-            target = target.to(DEVICE)
+            image = image.to(DEVICE, non_blocking=True)
+            target = target.to(DEVICE, non_blocking=True)
 
             output = model(image)
             loss = criterion(output, target)
@@ -197,6 +197,7 @@ if __name__ == "__main__":
             test_loader,
             forget_loader,
             retain_loader,
+            shadow_loader,
         ) = get_dataloaders(DSET, transform, unlr=UNLR, cf=CF)
 
         if METHOD == "retrain":
@@ -226,7 +227,7 @@ if __name__ == "__main__":
         print("[MAIN] Evaluating model")
         accs, losses = eval_unlearning(
             model,
-            [test_loader, forget_loader, retain_loader, val_loader],
+            [test_loader, forget_loader, shadow_loader, val_loader],
             ["test", "forget", "retain", "val"],
             criterion,
             DEVICE,
@@ -310,7 +311,7 @@ if __name__ == "__main__":
             print("[MAIN] Evaluating model")
             accs, losses = eval_unlearning(
                 model,
-                [test_loader, forget_loader, retain_loader, val_loader],
+                [test_loader, forget_loader, shadow_loader, val_loader],
                 ["test", "forget", "retain", "val"],
                 criterion,
                 DEVICE,

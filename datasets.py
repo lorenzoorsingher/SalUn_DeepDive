@@ -1,4 +1,5 @@
 import random
+import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
@@ -231,6 +232,9 @@ def get_dataloaders(
     forget_set = Subset(dataset, dataset.FORGET)
     retain_set = Subset(dataset, dataset.RETAIN)
 
+    shadow_subset = list(np.random.choice(dataset.TRAIN, len(dataset.FORGET)))
+    shadow_set = Subset(dataset, shadow_subset)
+
     train_l = DataLoader(
         train_set, batch_size=batch_s, shuffle=True, num_workers=8, pin_memory=True
     )
@@ -246,8 +250,11 @@ def get_dataloaders(
     retain_l = DataLoader(
         retain_set, batch_size=batch_s, shuffle=False, num_workers=8, pin_memory=True
     )
+    shadow_l = DataLoader(
+        shadow_set, batch_size=batch_s, shuffle=False, num_workers=8, pin_memory=True
+    )
 
-    return train_l, val_l, test_l, forget_l, retain_l
+    return train_l, val_l, test_l, forget_l, retain_l, shadow_l
 
 
 if __name__ == "__main__":
