@@ -5,22 +5,6 @@
     "mask_thr": 0.5,
     "lr": 0.01,
     "epochs": 10,
-    "method": "ga"
-  },
-  {
-    "class_to_forget": 0,
-    "use_mask": true,
-    "mask_thr": 0.5,
-    "lr": 0.01,
-    "epochs": 10,
-    "method": "ga"
-  },
-  {
-    "class_to_forget": 0,
-    "use_mask": false,
-    "mask_thr": 0.5,
-    "lr": 0.01,
-    "epochs": 10,
     "method": "rl"
   },
   {
@@ -46,5 +30,21 @@
     "lr": 0.01,
     "epochs": 10,
     "method": "rl_split"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": false,
+    "mask_thr": 0.5,
+    "lr": 0.0005,
+    "epochs": 10,
+    "method": "ga"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": true,
+    "mask_thr": 0.5,
+    "lr": 0.0005,
+    "epochs": 10,
+    "method": "ga"
   }
 ]

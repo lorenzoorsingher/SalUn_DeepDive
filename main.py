@@ -157,7 +157,7 @@ def compute_e_mia(retain_losses, forget_losses, val_losses, test_losses):
 
     score = nonm_prob / (nonm_prob + mem_prob + 1e-6)
 
-    breakpoint()
+    # breakpoint()
 
     return score, nonm_prob, mem_prob
 
