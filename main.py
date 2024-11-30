@@ -6,10 +6,12 @@ from sklearn.metrics import roc_auc_score
 import torch
 from tqdm import tqdm
 import wandb
+import scipy.stats as st
 
 from utils import get_args, load_checkpoint, gen_run_name, compute_topk, get_model
 from datasets import get_dataloaders
 from unlearn import compute_mask
+import numpy as np
 
 
 def rand_label(model, image, target, idx, criterion, loader):
@@ -17,8 +19,9 @@ def rand_label(model, image, target, idx, criterion, loader):
     ds = loader.dataset.dataset
     forget_tensor = torch.tensor(ds.FORGET).to(DEVICE)
     which_is_in = (idx.unsqueeze(1) == forget_tensor).any(dim=1)
-    rand_targets = torch.randint(1, len(ds.classes), target.shape).to(DEVICE)
-    rand_targets = (target + rand_targets) % len(ds.classes)
+    # rand_targets = torch.randint(1, len(ds.classes), target.shape).to(DEVICE)
+    rand_targets = torch.randint(0, len(ds.classes), target.shape).to(DEVICE)
+    # rand_targets = (target + rand_targets) % len(ds.classes)
     target[which_is_in] = rand_targets[which_is_in]
 
     output = model(image)
@@ -55,6 +58,32 @@ def retrain(model, image, target, idx, criterion, loader):
     loss = loss.mean()
 
     return loss
+
+
+def train(model, loader, method, criterion, optimizer, mask=None):
+
+    model.train()
+
+    for data in tqdm(loader):
+
+        image = data["image"]
+        target = data["label"]
+        idx = data["idx"]
+
+        image = image.to(DEVICE, non_blocking=True)
+        target = target.to(DEVICE, non_blocking=True)
+        idx = idx.to(DEVICE, non_blocking=True)
+
+        loss = method(model, image, target, idx, criterion, loader)
+        loss.backward()
+
+        if USE_MASK:
+            for name, param in model.named_parameters():
+                if name in mask:
+                    param.grad *= mask[name]
+
+        optimizer.step()
+        optimizer.zero_grad()
 
 
 def compute_basic_mia(retain_losses, forget_losses, val_losses, test_losses):
@@ -95,6 +124,42 @@ def compute_basic_mia(retain_losses, forget_losses, val_losses, test_losses):
                 best_auc = auc
     # breakpoint()
     return best_auc, best_acc
+
+
+def model_losses(losses):
+    losses_conf = np.exp(-losses)
+    losses_scaled = np.log(losses_conf / (1 - losses_conf))
+
+    mu = losses_scaled.mean()
+    sigma = losses_scaled.std()
+
+    return losses_scaled, mu, sigma
+
+
+def compute_e_mia(retain_losses, forget_losses, val_losses, test_losses):
+
+    retain_scaled, retain_mu, retain_sigma = model_losses(retain_losses)
+    forget_scaled, forget_mu, forget_sigma = model_losses(forget_losses)
+    val_scaled, val_mu, val_sigma = model_losses(val_losses)
+    test_scaled, test_mu, test_sigma = model_losses(test_losses)
+
+    nonm_z = (forget_scaled - test_mu) / test_sigma
+    mem_z = (forget_scaled - retain_mu) / retain_sigma
+
+    nonm_z = nonm_z.abs()
+    mem_z = mem_z.abs()
+
+    nonm_prob = 1 - (st.norm.cdf(nonm_z) - st.norm.cdf(-nonm_z))
+    mem_prob = 1 - (st.norm.cdf(mem_z) - st.norm.cdf(-mem_z))
+
+    nonm_prob = nonm_prob.mean().item()
+    mem_prob = mem_prob.mean().item()
+
+    score = nonm_prob / (nonm_prob + mem_prob + 1e-6)
+
+    breakpoint()
+
+    return score, nonm_prob, mem_prob
 
 
 def eval_unlearning(model, loaders, names, criterion, DEVICE):
@@ -213,6 +278,7 @@ if __name__ == "__main__":
             run_name = METHOD + "_" + gen_run_name(config)
             wandb.init(project="TrendsAndApps", name=run_name, config=config)
 
+        mask = None
         if USE_MASK:
             mask = compute_mask(
                 model,
@@ -227,7 +293,7 @@ if __name__ == "__main__":
         print("[MAIN] Evaluating model")
         accs, losses = eval_unlearning(
             model,
-            [test_loader, forget_loader, shadow_loader, val_loader],
+            [test_loader, forget_loader, retain_loader, val_loader],
             ["test", "forget", "retain", "val"],
             criterion,
             DEVICE,
@@ -235,16 +301,23 @@ if __name__ == "__main__":
         accs["forget"] = 1 - accs["forget"]
 
         print("[MAIN] Computing MIA")
-        mia_auc, mia_acc = compute_basic_mia(
+        mia_score, nonm, mem = compute_e_mia(
             torch.tensor(losses["retain"]),
             torch.tensor(losses["forget"]),
             torch.tensor(losses["val"]),
             torch.tensor(losses["test"]),
         )
+        # mia_auc, mia_acc = compute_basic_mia(
+        #     torch.tensor(losses["retain"]),
+        #     torch.tensor(losses["forget"]),
+        #     torch.tensor(losses["val"]),
+        #     torch.tensor(losses["test"]),
+        # )
 
         for key, value in accs.items():
             print(f"{key}: {round(value,2)}")
-        print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
+        # print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
+        print(f"MIA Score: {round(mia_score,2)}")
 
         # -------------------------------------------------------------
 
@@ -255,8 +328,9 @@ if __name__ == "__main__":
                     "base_forget": accs["forget"],
                     "base_retain": accs["retain"],
                     "base_val": accs["val"],
-                    "base_mia_auc": mia_auc,
-                    "base_mia_acc": mia_acc,
+                    "mia_score": mia_score,
+                    "nonm_mem": nonm,
+                    "mia_mem": mem,
                 }
             )
         print("[MAIN] Unlearning model")
@@ -269,6 +343,9 @@ if __name__ == "__main__":
         if METHOD == "rl":
             method = rand_label
             loader = train_loader
+        if METHOD == "rl_split":
+            method = rand_label
+            loader = forget_loader
         elif METHOD == "ga":
             method = grad_ascent
             loader = train_loader
@@ -283,35 +360,18 @@ if __name__ == "__main__":
 
             print(f"Epoch {epoch}")
 
-            model.train()
+            train(model, loader, method, criterion, optimizer, mask)
 
-            for data in tqdm(loader):
-
-                image = data["image"]
-                target = data["label"]
-                idx = data["idx"]
-
-                image = image.to(DEVICE, non_blocking=True)
-                target = target.to(DEVICE, non_blocking=True)
-                idx = idx.to(DEVICE, non_blocking=True)
-
-                loss = method(model, image, target, idx, criterion, loader)
-                loss.backward()
-
-                if USE_MASK:
-                    for name, param in model.named_parameters():
-                        if name in mask:
-                            param.grad *= mask[name]
-
-                optimizer.step()
-                optimizer.zero_grad()
+            if METHOD == "rl_split":
+                print("[MAIN] Fine tuning")
+                train(model, retain_loader, retrain, criterion, optimizer, None)
 
             # -------------------------------------------------------------
 
             print("[MAIN] Evaluating model")
             accs, losses = eval_unlearning(
                 model,
-                [test_loader, forget_loader, shadow_loader, val_loader],
+                [test_loader, forget_loader, retain_loader, val_loader],
                 ["test", "forget", "retain", "val"],
                 criterion,
                 DEVICE,
@@ -319,7 +379,7 @@ if __name__ == "__main__":
             accs["forget"] = 1 - accs["forget"]
 
             print("[MAIN] Computing MIA")
-            mia_auc, mia_acc = compute_basic_mia(
+            mia_score, nonm, mem = compute_e_mia(
                 torch.tensor(losses["retain"]),
                 torch.tensor(losses["forget"]),
                 torch.tensor(losses["val"]),
@@ -339,8 +399,8 @@ if __name__ == "__main__":
 
             for key, value in accs.items():
                 print(f"{key}: {round(value,2)}")
-            print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
-
+            # print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
+            print(f"MIA Score: {round(mia_score,2)}")
             if LOG:
                 wandb.log(
                     {
@@ -348,8 +408,9 @@ if __name__ == "__main__":
                         "forget": forget_acc,
                         "retain": retain_acc,
                         "val": val_acc,
-                        "mia_auc": mia_auc,
-                        "mia_acc": mia_acc,
+                        "mia_score": mia_score,
+                        "nonm_mem": nonm,
+                        "mia_mem": mem,
                     }
                 )
 
