@@ -13,6 +13,8 @@ from datasets import get_dataloaders
 from unlearn import compute_mask
 import numpy as np
 
+import torch.distributions as dist
+
 
 def rand_label(model, image, target, idx, criterion, loader):
     # Assign random labels to forget data
@@ -58,6 +60,49 @@ def retrain(model, image, target, idx, criterion, loader):
     loss = loss.mean()
 
     return loss
+
+
+def mia_loss(model, image, target, idx, criterion, loader):
+    output = model(image)
+    loss = criterion(output, target)
+
+    ds = loader.dataset.dataset
+    forget_tensor = torch.tensor(ds.FORGET).to(DEVICE)
+    which_is_in = (idx.unsqueeze(1) == forget_tensor).any(dim=1)
+
+    nonm = loss[which_is_in]
+    mem = loss[~which_is_in]
+
+    val_img = (next(iter(val_loader)))["image"].to(DEVICE)
+    val_target = (next(iter(val_loader)))["label"].to(DEVICE)
+    val_output = model(val_img)
+    val_loss = criterion(val_output, val_target)
+
+    nonm_scaled, nonm_mu, nonm_sigma = model_losses(nonm)
+    mem_scaled, mem_mu, mem_sigma = model_losses(mem)
+    val_scaled, val_mu, val_sigma = model_losses(val_loss)
+
+    nonm_z = (nonm_scaled - val_mu) / val_sigma
+    mem_z = (nonm_scaled - mem_mu) / mem_sigma
+    print(f"Nonm: {nonm_scaled}, Mem mu: {mem_mu}, Mem sigma: {mem_sigma}")
+
+    if torch.isnan(mem_z).any():
+        breakpoint()
+    nonm_z = nonm_z.abs()
+    mem_z = mem_z.abs()
+
+    normal_dist = dist.Normal(0, 1)
+
+    # breakpoint()
+    nonm_prob = 1 - (normal_dist.cdf(nonm_z) - normal_dist.cdf(-nonm_z))
+    mem_prob = 1 - (normal_dist.cdf(mem_z) - normal_dist.cdf(-mem_z))
+
+    nonm_prob = nonm_prob.mean()
+    mem_prob = mem_prob.mean()
+
+    score = nonm_prob / (nonm_prob + mem_prob + 1e-6)
+    # breakpoint()
+    return 1 - score
 
 
 def train(model, loader, method, criterion, optimizer, mask=None):
@@ -127,8 +172,9 @@ def compute_basic_mia(retain_losses, forget_losses, val_losses, test_losses):
 
 
 def model_losses(losses):
-    losses_conf = np.exp(-losses)
-    losses_scaled = np.log(losses_conf / (1 - losses_conf))
+    epsilon = 1e-6
+    losses_conf = torch.exp(-losses)
+    losses_scaled = torch.log(losses_conf / (1 - losses_conf + epsilon))
 
     mu = losses_scaled.mean()
     sigma = losses_scaled.std()
@@ -268,7 +314,7 @@ if __name__ == "__main__":
             forget_loader,
             retain_loader,
             shadow_loader,
-        ) = get_dataloaders(DSET, transform, unlr=UNLR, cf=CF)
+        ) = get_dataloaders(DSET, transform, unlr=UNLR, cf=CF, batch_s=128)
 
         if METHOD == "retrain":
             classes = train_loader.dataset.dataset.classes
@@ -295,50 +341,50 @@ if __name__ == "__main__":
 
         # -------------------------------------------------------------
 
-        print("[MAIN] Evaluating model")
-        accs, losses = eval_unlearning(
-            model,
-            [test_loader, forget_loader, retain_loader, val_loader],
-            ["test", "forget", "retain", "val"],
-            criterion,
-            DEVICE,
-        )
-        accs["forget"] = 1 - accs["forget"]
+        # print("[MAIN] Evaluating model")
+        # accs, losses = eval_unlearning(
+        #     model,
+        #     [test_loader, forget_loader, retain_loader, val_loader],
+        #     ["test", "forget", "retain", "val"],
+        #     criterion,
+        #     DEVICE,
+        # )
+        # accs["forget"] = 1 - accs["forget"]
 
-        print("[MAIN] Computing MIA")
-        mia_score, nonm, mem, control = compute_e_mia(
-            torch.tensor(losses["retain"]),
-            torch.tensor(losses["forget"]),
-            torch.tensor(losses["val"]),
-            torch.tensor(losses["test"]),
-        )
-        # mia_auc, mia_acc = compute_basic_mia(
+        # print("[MAIN] Computing MIA")
+        # mia_score, nonm, mem, control = compute_e_mia(
         #     torch.tensor(losses["retain"]),
         #     torch.tensor(losses["forget"]),
         #     torch.tensor(losses["val"]),
         #     torch.tensor(losses["test"]),
         # )
+        # # mia_auc, mia_acc = compute_basic_mia(
+        # #     torch.tensor(losses["retain"]),
+        # #     torch.tensor(losses["forget"]),
+        # #     torch.tensor(losses["val"]),
+        # #     torch.tensor(losses["test"]),
+        # # )
 
-        for key, value in accs.items():
-            print(f"{key}: {round(value,2)}")
-        # print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
-        print(f"MIA Score: {round(mia_score,2)}")
+        # for key, value in accs.items():
+        #     print(f"{key}: {round(value,2)}")
+        # # print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
+        # print(f"MIA Score: {round(mia_score,2)}")
 
-        # -------------------------------------------------------------
+        # if LOG:
+        #     wandb.log(
+        #         {
+        #             "base_test": accs["test"],
+        #             "base_forget": accs["forget"],
+        #             "base_retain": accs["retain"],
+        #             "base_val": accs["val"],
+        #             "base_mia_score": mia_score,
+        #             "base_nonm_mem": nonm,
+        #             "base_mia_mem": mem,
+        #             "base_control": control,
+        #         }
+        #     )
+        # # -------------------------------------------------------------
 
-        if LOG:
-            wandb.log(
-                {
-                    "base_test": accs["test"],
-                    "base_forget": accs["forget"],
-                    "base_retain": accs["retain"],
-                    "base_val": accs["val"],
-                    "base_mia_score": mia_score,
-                    "base_nonm_mem": nonm,
-                    "base_mia_mem": mem,
-                    "base_control": control,
-                }
-            )
         print("[MAIN] Unlearning model")
 
         best_test_acc = 0
@@ -361,6 +407,9 @@ if __name__ == "__main__":
         elif METHOD == "retrain":
             method = retrain
             loader = retain_loader
+        elif METHOD == "mia":
+            method = mia_loss
+            loader = train_loader
 
         for epoch in range(EPOCHS):
 
