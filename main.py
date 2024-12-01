@@ -145,21 +145,26 @@ def compute_e_mia(retain_losses, forget_losses, val_losses, test_losses):
 
     nonm_z = (forget_scaled - test_mu) / test_sigma
     mem_z = (forget_scaled - retain_mu) / retain_sigma
+    val_z = (val_scaled - test_mu) / test_sigma
 
     nonm_z = nonm_z.abs()
     mem_z = mem_z.abs()
+    val_z = val_z.abs()
 
     nonm_prob = 1 - (st.norm.cdf(nonm_z) - st.norm.cdf(-nonm_z))
     mem_prob = 1 - (st.norm.cdf(mem_z) - st.norm.cdf(-mem_z))
+    val_prob = 1 - (st.norm.cdf(val_z) - st.norm.cdf(-val_z))
 
     nonm_prob = nonm_prob.mean().item()
     mem_prob = mem_prob.mean().item()
+    val_prob = val_prob.mean().item()
 
     score = nonm_prob / (nonm_prob + mem_prob + 1e-6)
+    control_score = val_prob / (val_prob + mem_prob + 1e-6)
 
     # breakpoint()
 
-    return score, nonm_prob, mem_prob
+    return score, nonm_prob, mem_prob, control_score
 
 
 def eval_unlearning(model, loaders, names, criterion, DEVICE):
@@ -301,7 +306,7 @@ if __name__ == "__main__":
         accs["forget"] = 1 - accs["forget"]
 
         print("[MAIN] Computing MIA")
-        mia_score, nonm, mem = compute_e_mia(
+        mia_score, nonm, mem, control = compute_e_mia(
             torch.tensor(losses["retain"]),
             torch.tensor(losses["forget"]),
             torch.tensor(losses["val"]),
@@ -328,9 +333,10 @@ if __name__ == "__main__":
                     "base_forget": accs["forget"],
                     "base_retain": accs["retain"],
                     "base_val": accs["val"],
-                    "mia_score": mia_score,
-                    "nonm_mem": nonm,
-                    "mia_mem": mem,
+                    "base_mia_score": mia_score,
+                    "base_nonm_mem": nonm,
+                    "base_mia_mem": mem,
+                    "base_control": control,
                 }
             )
         print("[MAIN] Unlearning model")
@@ -364,7 +370,7 @@ if __name__ == "__main__":
 
             if METHOD == "rl_split":
                 print("[MAIN] Fine tuning")
-                train(model, retain_loader, retrain, criterion, optimizer, None)
+                train(model, retain_loader, retrain, criterion, optimizer, mask)
 
             # -------------------------------------------------------------
 
@@ -379,7 +385,7 @@ if __name__ == "__main__":
             accs["forget"] = 1 - accs["forget"]
 
             print("[MAIN] Computing MIA")
-            mia_score, nonm, mem = compute_e_mia(
+            mia_score, nonm, mem, control = compute_e_mia(
                 torch.tensor(losses["retain"]),
                 torch.tensor(losses["forget"]),
                 torch.tensor(losses["val"]),
@@ -411,6 +417,7 @@ if __name__ == "__main__":
                         "mia_score": mia_score,
                         "nonm_mem": nonm,
                         "mia_mem": mem,
+                        "control": control,
                     }
                 )
 
