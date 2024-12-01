@@ -30,5 +30,37 @@
     "lr": 0.0005,
     "epochs": 10,
     "method": "ga"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": false,
+    "mask_thr": 0.5,
+    "lr": 0.0001,
+    "epochs": 10,
+    "method": "ga"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": true,
+    "mask_thr": 0.5,
+    "lr": 0.0001,
+    "epochs": 10,
+    "method": "ga"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": false,
+    "mask_thr": 0.5,
+    "lr": 0.005,
+    "epochs": 10,
+    "method": "rl"
+  },
+  {
+    "class_to_forget": 0,
+    "use_mask": true,
+    "mask_thr": 0.5,
+    "lr": 0.005,
+    "epochs": 10,
+    "method": "rl"
   }
 ]
