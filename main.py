@@ -246,6 +246,7 @@ if __name__ == "__main__":
             if LOG:
                 config = {**config, **settings}
                 config["runid"] = runid
+                config["runidx"] = expidx
                 run_name = METHOD + "_" + gen_run_name(config) + f"_{expidx}"
                 wandb.init(project="TrendsAndApps", name=run_name, config=config)
 
