@@ -167,144 +167,67 @@ if __name__ == "__main__":
         wandb.login(key=WANDB_SECRET)
 
     ###################################################################
-
+    NEXP = 4
     for nexp, exp in enumerate(experiments):
 
-        settings = {**default, **exp}
+        all_results = []
 
-        print(f"[EXP {nexp+1} of {len(experiments)}] Running settings: {settings}")
+        runid = gen_run_name()
 
-        CF = settings["class_to_forget"]
-        CHKP = settings["checkpoint"]
-        USE_MASK = settings["use_mask"]
-        MASK_THR = settings["mask_thr"]
-        LR = settings["lr"]
-        UNLR = settings["unlearning_rate"]
-        EPOCHS = settings["epochs"]
-        METHOD = settings["method"]
+        for expidx in range(NEXP):
 
-        # LOAD_MASK = config["load_mask"]
-        # MASK_PATH = f"checkpoints/mask_resnet18_cifar10_{CLASS_TO_FORGET}.pt"
+            settings = {**default, **exp}
 
-        model, config, transform, opt = load_checkpoint(CHKP)
+            print(f"[EXP {nexp+1} of {len(experiments)}] Running settings: {settings}")
+            print(f"[RUN {expidx+1} of NEXP]")
+            CF = settings["class_to_forget"]
+            CHKP = settings["checkpoint"]
+            USE_MASK = settings["use_mask"]
+            MASK_THR = settings["mask_thr"]
+            LR = settings["lr"]
+            UNLR = settings["unlearning_rate"]
+            EPOCHS = settings["epochs"]
+            METHOD = settings["method"]
 
-        DSET = config["dataset"]
-        MODEL = config["model"]
+            # LOAD_MASK = config["load_mask"]
+            # MASK_PATH = f"checkpoints/mask_resnet18_cifar10_{CLASS_TO_FORGET}.pt"
 
-        (
-            train_loader,
-            val_loader,
-            test_loader,
-            forget_loader,
-            retain_loader,
-            shadow_loader,
-        ) = get_dataloaders(DSET, transform, unlr=UNLR, cf=CF)
+            model, config, transform, opt = load_checkpoint(CHKP)
 
-        if METHOD == "retrain":
-            classes = train_loader.dataset.dataset.classes
-            model, _, _ = get_model(MODEL, len(classes), False)
+            DSET = config["dataset"]
+            MODEL = config["model"]
 
-        model = model.to(DEVICE)
-        optimizer = torch.optim.SGD(model.parameters(), lr=LR)
-        criterion = torch.nn.CrossEntropyLoss(reduction="none")
-
-        if LOG:
-            config = {**config, **settings}
-            run_name = METHOD + "_" + gen_run_name(config)
-            wandb.init(project="TrendsAndApps", name=run_name, config=config)
-
-        if USE_MASK:
-            mask = compute_mask(
-                model,
+            (
+                train_loader,
+                val_loader,
+                test_loader,
                 forget_loader,
-                unlearn_lr=LR,
-                saliency_threshold=MASK_THR,
-                device=DEVICE,
-            )
+                retain_loader,
+                shadow_loader,
+            ) = get_dataloaders(DSET, transform, unlr=UNLR, cf=CF)
 
-        # -------------------------------------------------------------
+            if METHOD == "retrain":
+                classes = train_loader.dataset.dataset.classes
+                model, _, _ = get_model(MODEL, len(classes), False)
 
-        print("[MAIN] Evaluating model")
-        accs, losses = eval_unlearning(
-            model,
-            [test_loader, forget_loader, shadow_loader, val_loader],
-            ["test", "forget", "retain", "val"],
-            criterion,
-            DEVICE,
-        )
-        accs["forget"] = 1 - accs["forget"]
+            model = model.to(DEVICE)
+            optimizer = torch.optim.SGD(model.parameters(), lr=LR)
+            criterion = torch.nn.CrossEntropyLoss(reduction="none")
 
-        print("[MAIN] Computing MIA")
-        mia_auc, mia_acc = compute_basic_mia(
-            torch.tensor(losses["retain"]),
-            torch.tensor(losses["forget"]),
-            torch.tensor(losses["val"]),
-            torch.tensor(losses["test"]),
-        )
+            if LOG:
+                config = {**config, **settings}
+                config["runid"] = runid
+                run_name = METHOD + "_" + gen_run_name(config) + f"_{expidx}"
+                wandb.init(project="TrendsAndApps", name=run_name, config=config)
 
-        for key, value in accs.items():
-            print(f"{key}: {round(value,2)}")
-        print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
-
-        # -------------------------------------------------------------
-
-        if LOG:
-            wandb.log(
-                {
-                    "base_test": accs["test"],
-                    "base_forget": accs["forget"],
-                    "base_retain": accs["retain"],
-                    "base_val": accs["val"],
-                    "base_mia_auc": mia_auc,
-                    "base_mia_acc": mia_acc,
-                }
-            )
-        print("[MAIN] Unlearning model")
-
-        best_test_acc = 0
-        best_test = {}
-        best_forget_acc = 0
-        best_forget = {}
-
-        if METHOD == "rl":
-            method = rand_label
-            loader = train_loader
-        elif METHOD == "ga":
-            method = grad_ascent
-            loader = train_loader
-        elif METHOD == "ga_small":
-            method = grad_ascent_small
-            loader = forget_loader
-        elif METHOD == "retrain":
-            method = retrain
-            loader = retain_loader
-
-        for epoch in range(EPOCHS):
-
-            print(f"Epoch {epoch}")
-
-            model.train()
-
-            for data in tqdm(loader):
-
-                image = data["image"]
-                target = data["label"]
-                idx = data["idx"]
-
-                image = image.to(DEVICE, non_blocking=True)
-                target = target.to(DEVICE, non_blocking=True)
-                idx = idx.to(DEVICE, non_blocking=True)
-
-                loss = method(model, image, target, idx, criterion, loader)
-                loss.backward()
-
-                if USE_MASK:
-                    for name, param in model.named_parameters():
-                        if name in mask:
-                            param.grad *= mask[name]
-
-                optimizer.step()
-                optimizer.zero_grad()
+            if USE_MASK:
+                mask = compute_mask(
+                    model,
+                    forget_loader,
+                    unlearn_lr=LR,
+                    saliency_threshold=MASK_THR,
+                    device=DEVICE,
+                )
 
             # -------------------------------------------------------------
 
@@ -325,36 +248,141 @@ if __name__ == "__main__":
                 torch.tensor(losses["val"]),
                 torch.tensor(losses["test"]),
             )
-            test_acc = accs["test"]
-            forget_acc = accs["forget"]
-            retain_acc = accs["retain"]
-            val_acc = accs["val"]
-
-            if test_acc > best_test_acc:
-                best_test_acc = test_acc
-                best_test = accs
-            if forget_acc > best_forget_acc:
-                best_forget_acc = forget_acc
-                best_forget = accs
 
             for key, value in accs.items():
                 print(f"{key}: {round(value,2)}")
             print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
 
+            # -------------------------------------------------------------
+
             if LOG:
                 wandb.log(
                     {
-                        "test": test_acc,
-                        "forget": forget_acc,
-                        "retain": retain_acc,
-                        "val": val_acc,
-                        "mia_auc": mia_auc,
-                        "mia_acc": mia_acc,
+                        "base_test": accs["test"],
+                        "base_forget": accs["forget"],
+                        "base_retain": accs["retain"],
+                        "base_val": accs["val"],
+                        "base_mia_auc": mia_auc,
+                        "base_mia_acc": mia_acc,
                     }
                 )
+            print("[MAIN] Unlearning model")
 
-            # -------------------------------------------------------------
+            # best_test_acc = 0
+            # best_test = {}
+            # best_forget_acc = 0
+            # best_forget = {}
 
-        print(f"Best test: {best_test}")
-        print(f"Best forget: {best_forget}")
-        wandb.finish()
+            if METHOD == "rl":
+                method = rand_label
+                loader = train_loader
+            elif METHOD == "ga":
+                method = grad_ascent
+                loader = train_loader
+            elif METHOD == "ga_small":
+                method = grad_ascent_small
+                loader = forget_loader
+            elif METHOD == "retrain":
+                method = retrain
+                loader = retain_loader
+
+            for epoch in range(EPOCHS):
+
+                print(f"Epoch {epoch}")
+
+                model.train()
+
+                for data in tqdm(loader):
+
+                    image = data["image"]
+                    target = data["label"]
+                    idx = data["idx"]
+
+                    image = image.to(DEVICE, non_blocking=True)
+                    target = target.to(DEVICE, non_blocking=True)
+                    idx = idx.to(DEVICE, non_blocking=True)
+
+                    loss = method(model, image, target, idx, criterion, loader)
+                    loss.backward()
+
+                    if USE_MASK:
+                        for name, param in model.named_parameters():
+                            if name in mask:
+                                param.grad *= mask[name]
+
+                    optimizer.step()
+                    optimizer.zero_grad()
+
+                # -------------------------------------------------------------
+
+                print("[MAIN] Evaluating model")
+                accs, losses = eval_unlearning(
+                    model,
+                    [test_loader, forget_loader, shadow_loader, val_loader],
+                    ["test", "forget", "retain", "val"],
+                    criterion,
+                    DEVICE,
+                )
+                accs["forget"] = 1 - accs["forget"]
+
+                print("[MAIN] Computing MIA")
+                mia_auc, mia_acc = compute_basic_mia(
+                    torch.tensor(losses["retain"]),
+                    torch.tensor(losses["forget"]),
+                    torch.tensor(losses["val"]),
+                    torch.tensor(losses["test"]),
+                )
+                accs["mia_auc"] = mia_auc
+                accs["mia_acc"] = mia_acc
+                test_acc = accs["test"]
+                forget_acc = accs["forget"]
+                retain_acc = accs["retain"]
+                val_acc = accs["val"]
+
+                # if test_acc > best_test_acc:
+                #     best_test_acc = test_acc
+                #     best_test = accs
+                # if forget_acc > best_forget_acc:
+                #     best_forget_acc = forget_acc
+                #     best_forget = accs
+
+                for key, value in accs.items():
+                    print(f"{key}: {round(value,2)}")
+                print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
+
+                if LOG:
+                    wandb.log(
+                        {
+                            "test": test_acc,
+                            "forget": forget_acc,
+                            "retain": retain_acc,
+                            "val": val_acc,
+                            "mia_auc": mia_auc,
+                            "mia_acc": mia_acc,
+                        }
+                    )
+
+                # -------------------------------------------------------------
+            all_results.append(accs)
+            # print(f"Best test: {best_test}")
+            # print(f"Best forget: {best_forget}")
+            wandb.finish()
+
+        # Compute average results
+        avg_results = {}
+        for key in all_results[0].keys():
+            avg_results[key] = sum([r[key] for r in all_results]) / len(all_results)
+            # Compute standard deviation of results
+
+        std_results = {}
+        for key in all_results[0].keys():
+            std_results[f"{key}_std"] = torch.std(
+                torch.tensor([r[key] for r in all_results])
+            ).item()
+
+        final_results = {**avg_results, **std_results}
+
+        # Dump average results in JSON file
+        final_results["runid"] = runid
+        with open(f"results_{runid}.json", "w") as f:
+            json.dump(final_results, f, indent=4)

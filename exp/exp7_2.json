@@ -1,0 +1,37 @@
+[
+  {
+    "unlearning_rate": 0.1,
+    "use_mask": true,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "rl_split"
+  },
+  {
+    "unlearning_rate": 0.1,
+    "use_mask": true,
+    "lr": 0.05,
+    "epochs": 10,
+    "method": "rl_split"
+  },
+  {
+    "unlearning_rate": 0.1,
+    "use_mask": true,
+    "lr": 0.01,
+    "epochs": 10,
+    "method": "rl_split"
+  },
+  {
+    "unlearning_rate": 0.1,
+    "use_mask": true,
+    "lr": 0.005,
+    "epochs": 10,
+    "method": "rl_split"
+  },
+  {
+    "unlearning_rate": 0.1,
+    "use_mask": true,
+    "lr": 0.001,
+    "epochs": 10,
+    "method": "rl_split"
+  }
+]
