@@ -6,10 +6,12 @@ from sklearn.metrics import roc_auc_score
 import torch
 from tqdm import tqdm
 import wandb
+import scipy.stats as st
 
 from utils import get_args, load_checkpoint, gen_run_name, compute_topk, get_model
 from datasets import get_dataloaders
 from unlearn import compute_mask
+import numpy as np
 
 
 def rand_label(model, image, target, idx, criterion, loader):
@@ -17,8 +19,9 @@ def rand_label(model, image, target, idx, criterion, loader):
     ds = loader.dataset.dataset
     forget_tensor = torch.tensor(ds.FORGET).to(DEVICE)
     which_is_in = (idx.unsqueeze(1) == forget_tensor).any(dim=1)
-    rand_targets = torch.randint(1, len(ds.classes), target.shape).to(DEVICE)
-    rand_targets = (target + rand_targets) % len(ds.classes)
+    # rand_targets = torch.randint(1, len(ds.classes), target.shape).to(DEVICE)
+    rand_targets = torch.randint(0, len(ds.classes), target.shape).to(DEVICE)
+    # rand_targets = (target + rand_targets) % len(ds.classes)
     target[which_is_in] = rand_targets[which_is_in]
 
     output = model(image)
@@ -55,6 +58,32 @@ def retrain(model, image, target, idx, criterion, loader):
     loss = loss.mean()
 
     return loss
+
+
+def train(model, loader, method, criterion, optimizer, mask=None):
+
+    model.train()
+
+    for data in tqdm(loader):
+
+        image = data["image"]
+        target = data["label"]
+        idx = data["idx"]
+
+        image = image.to(DEVICE, non_blocking=True)
+        target = target.to(DEVICE, non_blocking=True)
+        idx = idx.to(DEVICE, non_blocking=True)
+
+        loss = method(model, image, target, idx, criterion, loader)
+        loss.backward()
+
+        if USE_MASK:
+            for name, param in model.named_parameters():
+                if name in mask:
+                    param.grad *= mask[name]
+
+        optimizer.step()
+        optimizer.zero_grad()
 
 
 def compute_basic_mia(retain_losses, forget_losses, val_losses, test_losses):
@@ -220,6 +249,7 @@ if __name__ == "__main__":
                 run_name = METHOD + "_" + gen_run_name(config) + f"_{expidx}"
                 wandb.init(project="TrendsAndApps", name=run_name, config=config)
 
+            mask = None
             if USE_MASK:
                 mask = compute_mask(
                     model,
@@ -276,6 +306,9 @@ if __name__ == "__main__":
             if METHOD == "rl":
                 method = rand_label
                 loader = train_loader
+            if METHOD == "rl_split":
+                method = rand_label
+                loader = forget_loader
             elif METHOD == "ga":
                 method = grad_ascent
                 loader = train_loader
@@ -290,28 +323,11 @@ if __name__ == "__main__":
 
                 print(f"Epoch {epoch}")
 
-                model.train()
+                train(model, loader, method, criterion, optimizer, mask)
 
-                for data in tqdm(loader):
-
-                    image = data["image"]
-                    target = data["label"]
-                    idx = data["idx"]
-
-                    image = image.to(DEVICE, non_blocking=True)
-                    target = target.to(DEVICE, non_blocking=True)
-                    idx = idx.to(DEVICE, non_blocking=True)
-
-                    loss = method(model, image, target, idx, criterion, loader)
-                    loss.backward()
-
-                    if USE_MASK:
-                        for name, param in model.named_parameters():
-                            if name in mask:
-                                param.grad *= mask[name]
-
-                    optimizer.step()
-                    optimizer.zero_grad()
+                if METHOD == "rl_split":
+                    print("[MAIN] Fine tuning")
+                    train(model, retain_loader, retrain, criterion, optimizer, mask)
 
                 # -------------------------------------------------------------
 
