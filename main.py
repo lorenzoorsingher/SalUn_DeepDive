@@ -208,7 +208,7 @@ if __name__ == "__main__":
             settings = {**default, **exp}
 
             print(f"[EXP {nexp+1} of {len(experiments)}] Running settings: {settings}")
-            print(f"[RUN {expidx+1} of NEXP]")
+            print(f"[RUN {expidx+1} of {NEXP}]")
             CF = settings["class_to_forget"]
             CHKP = settings["checkpoint"]
             USE_MASK = settings["use_mask"]
@@ -382,23 +382,32 @@ if __name__ == "__main__":
             all_results.append(accs)
             # print(f"Best test: {best_test}")
             # print(f"Best forget: {best_forget}")
+
+            if expidx == NEXP - 1:
+                print("[MAIN] Computing average results")
+                avg_results = {}
+                for key in all_results[0].keys():
+                    avg_results[f"{key}_avg"] = sum(
+                        [r[key] for r in all_results]
+                    ) / len(all_results)
+                    # Compute standard deviation of results
+
+                std_results = {}
+                for key in all_results[0].keys():
+                    std_results[f"{key}_std"] = torch.std(
+                        torch.tensor([r[key] for r in all_results])
+                    ).item()
+
+                final_results = {**avg_results, **std_results}
+
+                # Dump average results in JSON file
+                final_results["runid"] = runid
+                with open(f"results_{runid}.json", "w") as f:
+                    json.dump(final_results, f, indent=4)
+
+                if LOG:
+                    wandb.log(final_results)
+
             wandb.finish()
 
         # Compute average results
-        avg_results = {}
-        for key in all_results[0].keys():
-            avg_results[key] = sum([r[key] for r in all_results]) / len(all_results)
-            # Compute standard deviation of results
-
-        std_results = {}
-        for key in all_results[0].keys():
-            std_results[f"{key}_std"] = torch.std(
-                torch.tensor([r[key] for r in all_results])
-            ).item()
-
-        final_results = {**avg_results, **std_results}
-
-        # Dump average results in JSON file
-        final_results["runid"] = runid
-        with open(f"results_{runid}.json", "w") as f:
-            json.dump(final_results, f, indent=4)
