@@ -101,7 +101,7 @@ if __name__ == "__main__":
 
     experiments = [
         (
-            "checkpoints/resnet18_cifar10_pretrained_best.pt",
+            "checkpoints/resnet18_cifar10_SGD_best.pt",
             "checkpoints/resnet18_cifar10_pretrained_forget.json",
         ),
         (

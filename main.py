@@ -35,7 +35,6 @@ def rand_label(model, image, target, idx, criterion, loader):
     output = model(image)
     loss = criterion(output, target)
     loss = loss.mean()
-    # breakpoinct()
     return loss
 
 
@@ -294,8 +293,8 @@ if __name__ == "__main__":
             )
 
             for key, value in accs.items():
-                print(f"{key}: {round(value,2)}")
-            print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
+                print(f"{key}: {round(value,3)}")
+            print(f"MIA AUC: {round(mia_auc,3)}, MIA ACC: {round(mia_acc,3)}")
 
             # -------------------------------------------------------------
 
@@ -377,8 +376,8 @@ if __name__ == "__main__":
                 #     best_forget = accs
 
                 for key, value in accs.items():
-                    print(f"{key}: {round(value,2)}")
-                print(f"MIA AUC: {round(mia_auc,2)}, MIA ACC: {round(mia_acc,2)}")
+                    print(f"{key}: {round(value,3)}")
+                print(f"MIA AUC: {round(mia_auc,3)}, MIA ACC: {round(mia_acc,3)}")
 
                 if LOG:
                     wandb.log(

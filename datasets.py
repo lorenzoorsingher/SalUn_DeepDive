@@ -249,22 +249,22 @@ def get_dataloaders(
     shadow_set = Subset(dataset, shadow_subset)
 
     train_l = DataLoader(
-        train_set, batch_size=batch_s, shuffle=True, num_workers=8, pin_memory=True
+        train_set, batch_size=batch_s, shuffle=True, num_workers=12, pin_memory=True
     )
     val_l = DataLoader(
-        val_set, batch_size=batch_s, shuffle=False, num_workers=8, pin_memory=True
+        val_set, batch_size=batch_s, shuffle=False, num_workers=12, pin_memory=True
     )
     test_l = DataLoader(
-        test_set, batch_size=batch_s, shuffle=False, num_workers=8, pin_memory=True
+        test_set, batch_size=batch_s, shuffle=False, num_workers=12, pin_memory=True
     )
     forget_l = DataLoader(
-        forget_set, batch_size=batch_s, shuffle=False, num_workers=8, pin_memory=True
+        forget_set, batch_size=batch_s, shuffle=False, num_workers=12, pin_memory=True
     )
     retain_l = DataLoader(
-        retain_set, batch_size=batch_s, shuffle=False, num_workers=8, pin_memory=True
+        retain_set, batch_size=batch_s, shuffle=False, num_workers=12, pin_memory=True
     )
     shadow_l = DataLoader(
-        shadow_set, batch_size=batch_s, shuffle=False, num_workers=8, pin_memory=True
+        shadow_set, batch_size=batch_s, shuffle=False, num_workers=12, pin_memory=True
     )
 
     return train_l, val_l, test_l, forget_l, retain_l, shadow_l
@@ -287,8 +287,36 @@ if __name__ == "__main__":
         forget_loader,
         retain_loader,
         _,
-    ) = get_dataloaders(DSET, transform, unlr=UNLR, itf=ITF, cf=CF)
+    ) = get_dataloaders(DSET, None, unlr=UNLR, itf=ITF, cf=CF)
     ds = train_loader.dataset.dataset
+
+    # ds.data[10][0].show()
+
+    classes = [
+        "airplane",
+        "automobile",
+        "bird",
+        "cat",
+        "deer",
+        "dog",
+        "frog",
+        "horse",
+        "ship",
+        "truck",
+    ]
+
+    for data in forget_loader:
+
+        image = data["image"]
+        label = data["label"]
+
+        img = transforms.ToPILImage()(image[0])
+
+        # breakpoint()
+        plt.imshow(img)
+        plt.title(f"Label: {classes[label[0]]}")
+        plt.show()
+
     breakpoint()
 # if __name__ == "__main__":
 
