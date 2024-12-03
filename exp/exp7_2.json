@@ -1,34 +1,23 @@
 [
   {
-    "unlearning_rate": 0.1,
+    "idxs_to_forget": "checkpoints/resnet18_cifar10_pretrained_forget.json",
+    "checkpoint": "checkpoints/resnet18_cifar10_pretrained_best.pt",
     "use_mask": true,
     "lr": 0.1,
     "epochs": 10,
     "method": "rl_split"
   },
   {
-    "unlearning_rate": 0.1,
-    "use_mask": true,
-    "lr": 0.05,
-    "epochs": 10,
-    "method": "rl_split"
-  },
-  {
-    "unlearning_rate": 0.1,
+    "idxs_to_forget": "checkpoints/resnet18_cifar10_pretrained_forget.json",
+    "checkpoint": "checkpoints/resnet18_cifar10_pretrained_best.pt",
     "use_mask": true,
     "lr": 0.01,
     "epochs": 10,
     "method": "rl_split"
   },
   {
-    "unlearning_rate": 0.1,
-    "use_mask": true,
-    "lr": 0.005,
-    "epochs": 10,
-    "method": "rl_split"
-  },
-  {
-    "unlearning_rate": 0.1,
+    "idxs_to_forget": "checkpoints/resnet18_cifar10_pretrained_forget.json",
+    "checkpoint": "checkpoints/resnet18_cifar10_pretrained_best.pt",
     "use_mask": true,
     "lr": 0.001,
     "epochs": 10,
