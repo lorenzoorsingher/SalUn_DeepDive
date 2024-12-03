@@ -53,8 +53,8 @@ def test_loop(model, loader, criterion, device):
         image = data["image"]
         labels = data["label"]
 
-        image = image.to(device)
-        labels = labels.to(device)
+        image = image.to(device, non_blocking=True)
+        labels = labels.to(device, non_blocking=True)
 
         with torch.no_grad():
 
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     args = get_args()
 
     SAVE_PATH = "checkpoints/"
-    LOG = True
+    LOG = False
 
     # resnet18 vit_tiny_patch16_224 ... use timm.list_models() to get all models
     MODEL = args.model
@@ -100,8 +100,8 @@ if __name__ == "__main__":
 
     comment = args.comment
 
-    PAT = 4
-    EPOCHS = 100
+    PAT = 10
+    EPOCHS = 200
     LR = 0.001
 
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -129,9 +129,9 @@ if __name__ == "__main__":
     # forget_set = Subset(dataset, dataset.FORGET)
     # retain_set = Subset(dataset, dataset.RETAIN)
 
-    train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
-    val_loader = DataLoader(val_set, batch_size=32, shuffle=False)
-    test_loader = DataLoader(test_set, batch_size=32, shuffle=False)
+    train_loader = DataLoader(train_set, batch_size=32, shuffle=True, num_workers=8)
+    val_loader = DataLoader(val_set, batch_size=32, shuffle=False, num_workers=8)
+    test_loader = DataLoader(test_set, batch_size=32, shuffle=False, num_workers=8)
     # forget_loader = DataLoader(forget_set, batch_size=32, shuffle=False)
     # retain_loader = DataLoader(retain_set, batch_size=32, shuffle=False)
 
@@ -148,6 +148,9 @@ if __name__ == "__main__":
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
     criterion = torch.nn.CrossEntropyLoss()
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode="max", factor=0.2, patience=5, verbose=True
+    )
 
     print("Training model")
 
@@ -167,6 +170,10 @@ if __name__ == "__main__":
         loss = train_loop(model, train_loader, criterion, optimizer, DEVICE)
 
         val_loss, val_top1, val_top5 = test_loop(model, val_loader, criterion, DEVICE)
+
+        scheduler.step(val_top1)
+
+        print(f"lr: {optimizer.param_groups[0]['lr']}")
 
         if LOG:
             wandb.log(
