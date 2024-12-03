@@ -1,5 +1,6 @@
 import json
 import os
+import random
 from dotenv import load_dotenv
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score
@@ -8,7 +9,14 @@ from tqdm import tqdm
 import wandb
 import scipy.stats as st
 
-from utils import get_args, load_checkpoint, gen_run_name, compute_topk, get_model
+from utils import (
+    get_args,
+    load_checkpoint,
+    gen_run_name,
+    compute_topk,
+    get_model,
+    set_seed,
+)
 from datasets import get_dataloaders
 from unlearn import compute_mask
 import numpy as np
@@ -27,7 +35,7 @@ def rand_label(model, image, target, idx, criterion, loader):
     output = model(image)
     loss = criterion(output, target)
     loss = loss.mean()
-
+    # breakpoinct()
     return loss
 
 
@@ -166,9 +174,10 @@ if __name__ == "__main__":
     LOAD = args.load
 
     default = {
-        "checkpoint": "checkpoints/resnet18_cifar10_best.pt",
+        "checkpoint": "checkpoints/resnet18_cifar10_pretrained_best.pt",
         "class_to_forget": None,
         "unlearning_rate": None,
+        "idxs_to_forget": None,
         "load_mask": False,
         "use_mask": True,
         "mask_thr": 0.5,
@@ -203,6 +212,9 @@ if __name__ == "__main__":
 
         runid = gen_run_name()
 
+        # Set seed
+        set_seed(0)
+
         for expidx in range(NEXP):
 
             settings = {**default, **exp}
@@ -215,6 +227,7 @@ if __name__ == "__main__":
             MASK_THR = settings["mask_thr"]
             LR = settings["lr"]
             UNLR = settings["unlearning_rate"]
+            ITF = settings["idxs_to_forget"]
             EPOCHS = settings["epochs"]
             METHOD = settings["method"]
 
@@ -232,8 +245,8 @@ if __name__ == "__main__":
                 test_loader,
                 forget_loader,
                 retain_loader,
-                shadow_loader,
-            ) = get_dataloaders(DSET, transform, unlr=UNLR, cf=CF)
+                _,
+            ) = get_dataloaders(DSET, transform, unlr=UNLR, itf=ITF, cf=CF)
 
             if METHOD == "retrain":
                 classes = train_loader.dataset.dataset.classes
@@ -265,7 +278,7 @@ if __name__ == "__main__":
             print("[MAIN] Evaluating model")
             accs, losses = eval_unlearning(
                 model,
-                [test_loader, forget_loader, shadow_loader, val_loader],
+                [test_loader, forget_loader, retain_loader, val_loader],
                 ["test", "forget", "retain", "val"],
                 criterion,
                 DEVICE,
@@ -335,7 +348,7 @@ if __name__ == "__main__":
                 print("[MAIN] Evaluating model")
                 accs, losses = eval_unlearning(
                     model,
-                    [test_loader, forget_loader, shadow_loader, val_loader],
+                    [test_loader, forget_loader, retain_loader, val_loader],
                     ["test", "forget", "retain", "val"],
                     criterion,
                     DEVICE,

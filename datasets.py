@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, Subset
 from torch.utils.data import Dataset
 from torchvision import datasets, transforms
+import json
 
 
 class UnlearningDataset(Dataset):
@@ -15,6 +16,7 @@ class UnlearningDataset(Dataset):
         transform=None,
         unlearning_ratio=None,
         class_to_forget=None,
+        idx_to_forget=None,
     ):
 
         self.transform = transform
@@ -25,6 +27,7 @@ class UnlearningDataset(Dataset):
 
         self.class_to_forget = class_to_forget
         self.unlearning_ratio = unlearning_ratio
+        self.idx_to_forget = idx_to_forget
 
         self.train_split = split[0]
         self.val_split = split[1]
@@ -34,11 +37,6 @@ class UnlearningDataset(Dataset):
 
         _, labels = zip(*self.data)
         self.classes = set(labels)
-
-        if self.unlearning_ratio is not None and self.class_to_forget is not None:
-            print(
-                f"[DATASET] WARNING: unlearning_ratio and class_to_forget are both set. Using class to forget"
-            )
 
         assert set(self.RETAIN).intersection(set(self.FORGET)) == set()
         assert set(self.RETAIN).union(set(self.FORGET)) == set(self.TRAIN)
@@ -67,37 +65,40 @@ class UnlearningDataset(Dataset):
 
     def split_unlearning(self):
 
-        # Split the training set into train and validation
-        self.VAL = random.sample(self.TRAIN, int(len(self.TRAIN) * self.val_split))
-        self.TRAIN = list(set(self.TRAIN) - set(self.VAL))
+        assert [
+            self.idx_to_forget,
+            self.unlearning_ratio,
+            self.class_to_forget,
+        ].count(None) > 1
 
-        # Split the training set into forget and retain
+        # Split the training set
+        if self.idx_to_forget is not None:
+            self.FORGET = self.idx_to_forget
+
+            print(f"[DATASET] Forgetting {len(self.FORGET)} images from json")
+
+        if self.unlearning_ratio is not None:
+            self.FORGET = random.sample(
+                self.TRAIN, int(len(self.TRAIN) * self.unlearning_ratio)
+            )
+            print(f"[DATASET] Forgetting {len(self.FORGET)} random images")
+
         if self.class_to_forget is not None:
             self.FORGET = [
                 idx for idx in self.TRAIN if self.data[idx][1] == self.class_to_forget
             ]
-            self.RETAIN = list(set(self.TRAIN) - set(self.FORGET))
-
-            # Remove the class to forget from the test set and val set
+            # Remove the class to forget from the test set
             self.TEST = [
                 idx for idx in self.TEST if self.data[idx][1] != self.class_to_forget
-            ]
-
-            self.VAL = [
-                idx for idx in self.VAL if self.data[idx][1] != self.class_to_forget
             ]
             print(
                 f"[DATASET] Forgetting {len(self.FORGET)} images from class {self.class_to_forget}"
             )
-        else:
-            num_images_to_forget = int(len(self.TRAIN) * self.unlearning_ratio)
-            self.FORGET = random.sample(self.TRAIN, num_images_to_forget)
-            self.RETAIN = list(set(self.TRAIN) - set(self.FORGET))
-            print(f"[DATASET] Forgetting {num_images_to_forget} images")
 
-        print(
-            f"Train samples: {len(self.TRAIN)} - Forget samples: {len(self.FORGET)} - Unlearn Ratio: {self.unlearning_ratio}"
-        )
+        self.RETAIN = list(set(self.TRAIN) - set(self.FORGET))
+        self.VAL = random.sample(self.RETAIN, int(len(self.TRAIN) * self.val_split))
+        self.RETAIN = list(set(self.RETAIN) - set(self.VAL))
+        self.TRAIN = list(set(self.TRAIN) - set(self.VAL))
 
     def set_transform(self, transform):
         self.transform = transform
@@ -122,6 +123,7 @@ class UnlearnCifar10(UnlearningDataset):
         transform=None,
         unlearning_ratio=None,
         class_to_forget=None,
+        idx_to_forget=None,
     ):
 
         train = datasets.CIFAR10(
@@ -143,6 +145,7 @@ class UnlearnCifar10(UnlearningDataset):
             split=split,
             transform=transform,
             class_to_forget=class_to_forget,
+            idx_to_forget=idx_to_forget,
         )
 
 
@@ -153,6 +156,7 @@ class UnlearnCifar100(UnlearningDataset):
         transform=None,
         unlearning_ratio=None,
         class_to_forget=None,
+        idx_to_forget=None,
     ):
 
         train = datasets.CIFAR100(
@@ -174,6 +178,7 @@ class UnlearnCifar100(UnlearningDataset):
             split=split,
             transform=transform,
             class_to_forget=class_to_forget,
+            idx_to_forget=idx_to_forget,
         )
 
 
@@ -184,6 +189,7 @@ class UnlearnSVNH(UnlearningDataset):
         transform=None,
         unlearning_ratio=None,
         class_to_forget=None,
+        idx_to_forget=None,
     ):
 
         test_split = split[2]
@@ -200,6 +206,7 @@ class UnlearnSVNH(UnlearningDataset):
             split=split,
             transform=transform,
             class_to_forget=class_to_forget,
+            idx_to_forget=idx_to_forget,
         )
 
 
@@ -207,6 +214,7 @@ def get_dataloaders(
     dataname,
     transform,
     unlr=0,
+    itf=None,
     cf=None,
     split=[0.7, 0.2, 0.1],
     batch_s=32,
@@ -219,10 +227,15 @@ def get_dataloaders(
     elif dataname == "svnh":
         dataclass = UnlearnSVNH
 
+    if itf is not None:
+        with open(itf, "r") as f:
+            itf = json.load(f)
+
     dataset = dataclass(
         split=split,
         transform=transform,
         class_to_forget=cf,
+        idx_to_forget=itf,
         unlearning_ratio=unlr,
     )
 
@@ -259,34 +272,54 @@ def get_dataloaders(
 
 if __name__ == "__main__":
 
-    # dataset = UnlearnSVNH()
-    # dataset = UnlearnCifar10()
+    transform = None
 
-    # train val test
-    split = [0.7, 0.2, 0.1]
-    dataset = UnlearnSVNH(split=split)
+    DSET = "cifar10"
 
-    train_set = Subset(dataset, dataset.TRAIN)
-    val_set = Subset(dataset, dataset.VAL)
-    test_set = Subset(dataset, dataset.TEST)
-    forget_set = Subset(dataset, dataset.FORGET)
-    retain_set = Subset(dataset, dataset.RETAIN)
+    ITF = None  # "checkpoints/resnet18_cifar10_pretrained_forget.json"
+    UNLR = None  # 0.2  # None  # 0.2
+    CF = 0  # None  # 0
 
-    train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
-    val_loader = DataLoader(val_set, batch_size=32, shuffle=False)
-    test_loader = DataLoader(test_set, batch_size=32, shuffle=False)
-    forget_loader = DataLoader(forget_set, batch_size=32, shuffle=False)
-    retain_loader = DataLoader(retain_set, batch_size=32, shuffle=False)
+    (
+        train_loader,
+        val_loader,
+        test_loader,
+        forget_loader,
+        retain_loader,
+        _,
+    ) = get_dataloaders(DSET, transform, unlr=UNLR, itf=ITF, cf=CF)
+    ds = train_loader.dataset.dataset
+    breakpoint()
+# if __name__ == "__main__":
 
-    for data in test_loader:
+#     # dataset = UnlearnSVNH()
+#     # dataset = UnlearnCifar10()
 
-        image = data["image"]
-        label = data["label"]
+#     # train val test
+#     split = [0.7, 0.2, 0.1]
+#     dataset = UnlearnSVNH(split=split)
 
-        img = transforms.ToPILImage()(image[0])
+#     train_set = Subset(dataset, dataset.TRAIN)
+#     val_set = Subset(dataset, dataset.VAL)
+#     test_set = Subset(dataset, dataset.TEST)
+#     forget_set = Subset(dataset, dataset.FORGET)
+#     retain_set = Subset(dataset, dataset.RETAIN)
 
-        # breakpoint()
-        plt.imshow(img)
-        plt.title(f"Label: {label[0]}")
-        plt.show()
-        # breakpoint()
+#     train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
+#     val_loader = DataLoader(val_set, batch_size=32, shuffle=False)
+#     test_loader = DataLoader(test_set, batch_size=32, shuffle=False)
+#     forget_loader = DataLoader(forget_set, batch_size=32, shuffle=False)
+#     retain_loader = DataLoader(retain_set, batch_size=32, shuffle=False)
+
+#     for data in test_loader:
+
+#         image = data["image"]
+#         label = data["label"]
+
+#         img = transforms.ToPILImage()(image[0])
+
+#         # breakpoint()
+#         plt.imshow(img)
+#         plt.title(f"Label: {label[0]}")
+#         plt.show()
+#         # breakpoint()
