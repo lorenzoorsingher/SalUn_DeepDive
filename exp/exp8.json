@@ -1,0 +1,10 @@
+[
+  {
+    "idxs_to_forget": "checkpoints/resnet18_cifar10_pretrained_forget.json",
+    "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
+    "use_mask": false,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "rl"
+  }
+]

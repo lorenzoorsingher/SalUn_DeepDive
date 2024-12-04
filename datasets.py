@@ -69,7 +69,7 @@ class UnlearningDataset(Dataset):
             self.idx_to_forget,
             self.unlearning_ratio,
             self.class_to_forget,
-        ].count(None) > 1
+        ].count(None) == 2
 
         # Split the training set
         if self.idx_to_forget is not None:
@@ -96,7 +96,7 @@ class UnlearningDataset(Dataset):
             )
 
         self.RETAIN = list(set(self.TRAIN) - set(self.FORGET))
-        self.VAL = random.sample(self.RETAIN, int(len(self.TRAIN) * self.val_split))
+        self.VAL = random.sample(self.RETAIN, int(len(self.RETAIN) * self.val_split))
         self.RETAIN = list(set(self.RETAIN) - set(self.VAL))
         self.TRAIN = list(set(self.TRAIN) - set(self.VAL))
     
