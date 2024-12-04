@@ -228,6 +228,7 @@ def get_dataloaders(
     cf=None,
     split=[0.7, 0.2, 0.1],
     batch_s=32,
+    num_workers=8,
 ):
 
     if dataname == "cifar10":
@@ -259,22 +260,46 @@ def get_dataloaders(
     shadow_set = Subset(dataset, shadow_subset)
 
     train_l = DataLoader(
-        train_set, batch_size=batch_s, shuffle=True, num_workers=12, pin_memory=True
+        train_set,
+        batch_size=batch_s,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=True,
     )
     val_l = DataLoader(
-        val_set, batch_size=batch_s, shuffle=False, num_workers=12, pin_memory=True
+        val_set,
+        batch_size=batch_s,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
     )
     test_l = DataLoader(
-        test_set, batch_size=batch_s, shuffle=False, num_workers=12, pin_memory=True
+        test_set,
+        batch_size=batch_s,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
     )
     forget_l = DataLoader(
-        forget_set, batch_size=batch_s, shuffle=False, num_workers=12, pin_memory=True
+        forget_set,
+        batch_size=batch_s,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
     )
     retain_l = DataLoader(
-        retain_set, batch_size=batch_s, shuffle=False, num_workers=12, pin_memory=True
+        retain_set,
+        batch_size=batch_s,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
     )
     shadow_l = DataLoader(
-        shadow_set, batch_size=batch_s, shuffle=False, num_workers=12, pin_memory=True
+        shadow_set,
+        batch_size=batch_s,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=True,
     )
 
     return train_l, val_l, test_l, forget_l, retain_l, shadow_l
