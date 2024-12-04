@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 from dotenv import load_dotenv
 
-from datasets import UnlearnCifar10, UnlearnCifar100, UnlearnSVNH
+from datasets import get_dataloaders
 from utils import get_model, compute_topk, load_checkpoint
 
 
@@ -75,12 +75,17 @@ def test_loop(model, loader, criterion, device):
 
 def get_args():
 
-    parser = argparse.ArgumentParser(description="Train model")
+    parser = argparse.ArgumentParser(description="Retrain model")
 
     parser.add_argument("--model", type=str, default="resnet18")
     parser.add_argument("--dataset", type=str, default="cifar10")
     parser.add_argument("--comment", type=str, default="pretrained")
+    parser.add_argument("--lr", type=float, default=0.1)
 
+    # Set this to 0 to train on all data
+    parser.add_argument("--unlr", type=float, default=None)  # unlearning ratio.
+    parser.add_argument("--itf", type=str, default=None)  # idx to forget
+    parser.add_argument("--cf", type=int, default=None)  # class to forget
     args = parser.parse_args()
 
     return args
@@ -100,6 +105,9 @@ if __name__ == "__main__":
     DSET = args.dataset
 
     comment = args.comment
+    UNLR = args.unlr
+    ITF = args.itf
+    CF = args.cf
 
     PAT = 10
     EPOCHS = 200
@@ -112,64 +120,42 @@ if __name__ == "__main__":
         WANDB_SECRET = os.getenv("WANDB_SECRET")
         wandb.login(key=WANDB_SECRET)
 
-    split = [0.7, 0.2, 0.1]
-    transform = None
+    nclasses = 100 if DSET == "cifar100" else 10
 
-    if DSET == "cifar10":
-        dataset = UnlearnCifar10(split=split, transform=transform, unlearning_ratio=0.1)
-    elif DSET == "cifar100":
-        dataset = UnlearnCifar100(
-            split=split, transform=transform, unlearning_ratio=0.1
-        )
-    elif DSET == "svnh":
-        dataset = UnlearnSVNH(split=split, transform=transform, unlearning_ratio=0.1)
+    model, config, transform = get_model(MODEL, nclasses, True)
 
-    classes = dataset.classes
+    (
+        train_loader,
+        val_loader,
+        test_loader,
+        forget_loader,
+        retain_loader,
+        _,
+    ) = get_dataloaders(DSET, transform, unlr=UNLR, itf=ITF, cf=CF)
 
-    train_set = Subset(dataset, dataset.TRAIN)
-    val_set = Subset(dataset, dataset.VAL)
-    test_set = Subset(dataset, dataset.TEST)
-    forget_set = Subset(dataset, dataset.FORGET)
-    retain_set = Subset(dataset, dataset.RETAIN)
+    model_savename = f"{SAVE_PATH}{MODEL}_{DSET}_{comment}"
 
-    train_loader = DataLoader(train_set, batch_size=32, shuffle=True, num_workers=8)
-    val_loader = DataLoader(val_set, batch_size=32, shuffle=False, num_workers=8)
-    test_loader = DataLoader(test_set, batch_size=32, shuffle=False, num_workers=8)
-    forget_loader = DataLoader(forget_set, batch_size=32, shuffle=False)
-    retain_loader = DataLoader(retain_set, batch_size=32, shuffle=False)
-    # breakpoint()
-
-    forget_targets = f"{SAVE_PATH}{MODEL}_{DSET}_{comment}_forget.json"
-    with open(forget_targets, "w") as f:
-        json.dump(dataset.FORGET, f)
-
-    model, config, transform = get_model(MODEL, len(classes), True)
+    ds = train_loader.dataset.dataset
+    with open(f"{model_savename}_forget.json", "w") as f:
+        json.dump(ds.FORGET, f)
 
     config = {
         "model": MODEL,
         "dataset": DSET,
-        "nclasses": len(classes),
+        "nclasses": nclasses,
     }
-
+    breakpoint()
     model = model.to(DEVICE)
-    dataset.set_transform(transform)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
+    optimizer = torch.optim.SGD(
+        model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4
+    )
     criterion = torch.nn.CrossEntropyLoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="max", factor=0.2, patience=5, verbose=True
     )
 
     print("Training model")
-
-    if LOG:
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_name = f"run_{timestamp}"
-        wandb.init(
-            project="TrendsAndApps",
-            name=run_name,
-            config=config,
-        )
 
     best_acc = 0
     pat = PAT
@@ -186,15 +172,6 @@ if __name__ == "__main__":
 
         print(f"lr: {optimizer.param_groups[0]['lr']}")
 
-        if LOG:
-            wandb.log(
-                {
-                    "train_loss": loss,
-                    "val_loss": val_loss,
-                    "val_top1": val_top1,
-                    "val_top5": val_top5,
-                }
-            )
         print(
             f"Epoch: {epoch}, Loss: {round(loss,2)}, Val Loss: {round(val_loss,2)}, Val Top1: {round(val_top1,2)} Val Top5: {round(val_top5,2)} PAT: {pat}"
         )
@@ -212,8 +189,7 @@ if __name__ == "__main__":
                 "config": config,
             }
 
-            model_savepath = f"{SAVE_PATH}{MODEL}_{DSET}_{comment}_forget.pt"
-
+            model_savepath = f"{model_savename}.pt"
             torch.save(model_savefile, model_savepath)
 
         else:
@@ -226,12 +202,3 @@ if __name__ == "__main__":
     print(
         f"Test Loss: {round(test_loss,2)}, Test Top1: {round(test_top1,2)} Test Top5: {round(test_top5,2)}"
     )
-
-    if LOG:
-        wandb.log(
-            {
-                "test_loss": test_loss,
-                "test_top1": test_top1,
-                "test_top5": test_top5,
-            }
-        )
