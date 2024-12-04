@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, Subset
 from torch.utils.data import Dataset
 from torchvision import datasets, transforms
 import json
-
+import pandas as pd
 
 class UnlearningDataset(Dataset):
     def __init__(
@@ -99,6 +99,16 @@ class UnlearningDataset(Dataset):
         self.VAL = random.sample(self.RETAIN, int(len(self.TRAIN) * self.val_split))
         self.RETAIN = list(set(self.RETAIN) - set(self.VAL))
         self.TRAIN = list(set(self.TRAIN) - set(self.VAL))
+    
+    def get_samples(self, class_to_retreive = 0, n_samples = 10 ):
+        samples = []
+        concatenated_index = pd.concat([pd.Series(index) for index in [self.VAL, self.TRAIN, self.TEST]]).index
+        for idx in concatenated_index:
+            if self.data[idx][1] == class_to_retreive:
+                samples.append(self.data[idx])
+            if len(samples) == n_samples:
+                break
+        return samples
 
     def set_transform(self, transform):
         self.transform = transform

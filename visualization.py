@@ -1,14 +1,21 @@
 import torch
-import torchvision.models as models
-import torchvision.transforms as transforms
-from sklearn.decomposition import PCA
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from torchvision.datasets import CIFAR10
-from torch.utils.data import DataLoader
-
+#import torchvision.models as models
+#import torchvision.transforms as transforms
+#from sklearn.decomposition import PCA
+#import matplotlib.pyplot as plt
+#from mpl_toolkits.mplot3d import Axes3D
+#from torchvision.datasets import CIFAR10
+#from torch.utils.data import DataLoader
+from datasets import UnlearnCifar10, UnlearnCifar100, UnlearnSVNH
 from utils import load_checkpoint
 
+split = [0.7, 0.2, 0.1]
+transform = None
+dataset = UnlearnCifar10(split=split, transform=transform, unlearning_ratio=0)
+samples = []
+samples_to_retreive = 10
+for i in dataset.classes:
+    samples.append(dataset.get_samples(class_to_retreive = i,n_samples = samples_to_retreive))
 model, config, transform, opt = load_checkpoint('checkpoints/resnet18_cifar10_pretrained_best.pt')
 # Load pretrained ResNet18
 resnet18 = model
