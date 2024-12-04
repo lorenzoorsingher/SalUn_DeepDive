@@ -127,5 +127,5 @@ cython_debug/
 
 data/*
 *.pt
-
+checkpoints/*.json
 wandb/

@@ -144,7 +144,7 @@ if __name__ == "__main__":
         "dataset": DSET,
         "nclasses": nclasses,
     }
-    breakpoint()
+
     model = model.to(DEVICE)
 
     optimizer = torch.optim.SGD(
@@ -173,10 +173,10 @@ if __name__ == "__main__":
         print(f"lr: {optimizer.param_groups[0]['lr']}")
 
         print(
-            f"Epoch: {epoch}, Loss: {round(loss,2)}, Val Loss: {round(val_loss,2)}, Val Top1: {round(val_top1,2)} Val Top5: {round(val_top5,2)} PAT: {pat}"
+            f"Epoch: {epoch}, Loss: {round(loss,3)}, Val Loss: {round(val_loss,3)}, Val Top1: {round(val_top1,3)} Val Top5: {round(val_top5,3)} PAT: {pat}"
         )
         print(
-            f"Epoch: {epoch}, Loss: {round(loss,2)}, For Loss: {round(for_loss,2)}, For Top1: {round(for_top1,2)} For Top5: {round(for_top5,2)} PAT: {pat}"
+            f"Epoch: {epoch}, Loss: {round(loss,3)}, For Loss: {round(for_loss,3)}, For Top1: {round(for_top1,3)} For Top5: {round(for_top5,3)} PAT: {pat}"
         )
 
         if val_top1 > best_acc:
@@ -200,5 +200,5 @@ if __name__ == "__main__":
     test_loss, test_top1, test_top5 = test_loop(model, test_loader, criterion, DEVICE)
 
     print(
-        f"Test Loss: {round(test_loss,2)}, Test Top1: {round(test_top1,2)} Test Top5: {round(test_top5,2)}"
+        f"Test Loss: {round(test_loss,3)}, Test Top1: {round(test_top1,3)} Test Top5: {round(test_top5,3)}"
     )
