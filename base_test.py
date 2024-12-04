@@ -18,7 +18,7 @@ from utils import (
     set_seed,
 )
 from datasets import get_dataloaders
-from unlearn import compute_mask
+from methods import compute_mask
 import numpy as np
 
 

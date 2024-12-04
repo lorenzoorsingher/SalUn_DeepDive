@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 from dotenv import load_dotenv
 
-from methods import rand_label, grad_ascent, grad_ascent_small, retrain
+from methods import rand_label, grad_ascent, grad_ascent_small, retrain, compute_mask
 from utils import (
     get_args,
     load_checkpoint,
@@ -19,7 +19,6 @@ from utils import (
 )
 from eval import compute_basic_mia, eval_unlearning
 from datasets import get_dataloaders
-from unlearn import compute_mask
 
 
 def train(model, loader, method, criterion, optimizer, device, mask=None):
