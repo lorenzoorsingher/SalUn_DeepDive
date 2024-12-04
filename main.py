@@ -17,7 +17,7 @@ from utils import (
     set_seed,
     get_avg_std,
 )
-from eval import compute_basic_mia, eval_unlearning
+from metrics import compute_basic_mia, eval_unlearning
 from datasets import get_dataloaders
 
 
