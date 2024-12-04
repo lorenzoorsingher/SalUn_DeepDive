@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
     PAT = 10
     EPOCHS = 200
-    LR = 0.001
+    LR = 0.1
 
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -146,7 +146,10 @@ if __name__ == "__main__":
     model = model.to(DEVICE)
     dataset.set_transform(transform)
 
-    optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
+    # optimizer = torch.optim.AdamW(model.parameters(), lr=LR)
+    optimizer = torch.optim.SGD(
+        model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4
+    )
     criterion = torch.nn.CrossEntropyLoss()
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="max", factor=0.2, patience=5, verbose=True

@@ -57,6 +57,21 @@ def gen_run_name(config=None):
     return run_name
 
 
+def get_avg_std(results):
+    avg_results = {}
+    for key in results[0].keys():
+        avg_results[f"{key}_avg"] = sum([r[key] for r in results]) / len(results)
+        # Compute standard deviation of results
+
+    std_results = {}
+    for key in results[0].keys():
+        std_results[f"{key}_std"] = torch.std(
+            torch.tensor([r[key] for r in results])
+        ).item()
+
+    return {**avg_results, **std_results}
+
+
 def set_seed(seed):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
@@ -171,6 +186,14 @@ def get_args():
         type=float,
         help="Threshold for the mask",
         default=0.5,
+        metavar="",
+    )
+
+    parser.add_argument(
+        "--nexp",
+        type=int,
+        help="Number of runs for experiment",
+        default=4,
         metavar="",
     )
 
