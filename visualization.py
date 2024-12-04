@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 # from mpl_toolkits.mplot3d import Axes3D
 # from torchvision.datasets import CIFAR10
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 from datasets import UnlearnCifar10, UnlearnCifar100, UnlearnSVNH
 from utils import load_checkpoint
 
@@ -42,13 +43,16 @@ if __name__ == "__main__":
     all_labels = []
 
     with torch.no_grad():
-        for data in dataloader:
+        for idx, data in enumerate(tqdm(dataloader)):
             model(data["image"])
             latent_features = (
                 features.pop().squeeze().view(data["image"].size(0), -1)
             )  # Flatten
             all_features.append(latent_features)
             all_labels.append(data["label"])
+
+            if idx == 100:
+                break
 
     all_features = torch.cat(all_features).numpy()
     all_labels = torch.cat(all_labels).numpy()
