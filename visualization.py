@@ -2,6 +2,7 @@ import os
 
 import torch
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 
 import numpy as np
@@ -12,8 +13,7 @@ from utils import load_checkpoint
 from PIL import Image
 
 
-def make_views(ax, angles, elevation=None, width=4, height=3,
-               prefix='tmprot_', **kwargs):
+def make_views(ax, angles, elevation=None, width=4, height=3, prefix='tmprot_', **kwargs):
     """
     Makes jpeg pictures of the given 3d ax, with different angles.
     Args:
@@ -47,7 +47,6 @@ def make_gif(files, output, delay=100, loop=0, **kwargs):
         :param output: Path to save the output GIF file.
         :param delay: Delay between frames in milliseconds.
         :param loop: Number of times the GIF should loop (0 means infinite).
-        :param loop:
     """
     # Open all images
     frames = [Image.open(file) for file in files]
@@ -64,30 +63,25 @@ def make_gif(files, output, delay=100, loop=0, **kwargs):
 
 def rotanimate(ax, angles, output, **kwargs):
     """
-    Produces an animation (.mp4,.ogv,.gif,.jpeg,.png) from a 3D plot on
-    a 3D ax
+    Produces an animation (.gif) from a 3D plot on a 3D axis
 
     Args:
         ax (3D axis): the ax containing the plot of interest
         angles (list): the list of angles (in degree) under which to
                        show the plot.
-        output : name of the output file. The extension determines the
-                 kind of animation used.
+        output : name of the output file. Must be .gif
         **kwargs:
             - width : in inches
             - heigth: in inches
-            - framerate : frames per second
             - delay : delay between frames in milliseconds
-            - repeat : True or False (.gif only)
+            - repeat : 0 for unlimited loop. Integer for n loops.
     """
 
     output_ext = os.path.splitext(output)[1]
-
+    assert output_ext == '.gif', "The output file must be a .gif"
     files = make_views(ax, angles, **kwargs)
 
-    D = {'.gif': make_gif}
-
-    D[output_ext](files, output, **kwargs)
+    make_gif(files, output, **kwargs)
 
     for f in files:
         os.remove(f)
@@ -99,6 +93,14 @@ if __name__ == "__main__":
         "checkpoints/resnet18_cifar10_pretrained_best.pt"
     )
     DSET = config["dataset"]
+
+    plot_classes = ['Plane', 'Car', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
+
+    plot_colors = [
+        'blue', 'red', 'green', 'orange',
+        'brown', 'purple', 'pink', 'gray',
+        'cyan', 'yellow'
+    ]
 
     (
         train_loader,
@@ -115,8 +117,10 @@ if __name__ == "__main__":
     # Hook to extract features from an intermediate layer
     features = []
 
+
     def hook(module, input, output):
         features.append(output)
+
 
     # Register the hook to a layer (e.g., avgpool layer)
     layer = model.global_pool
@@ -139,44 +143,74 @@ if __name__ == "__main__":
     all_features = torch.cat(all_features).numpy()
     all_labels = torch.cat(all_labels).numpy()
 
-    # Apply PCA for 3D
-    pca = PCA(n_components=3)
-    pca_features = pca.fit_transform(all_features)
+    classes = np.unique(all_labels)
+    centroids = {}
+    for cls in classes:
+        # Get features corresponding to the current class
+        class_features = all_features[all_labels == cls]
+
+        # Compute the mean (centroid) of the features for this class
+        centroids[cls] = np.mean(class_features, axis=0)
+
+    plt.figure(figsize=(10, 6))
+
+    for cls, centroid in centroids.items():
+        plt.bar(
+            cls,  # 512 dimensions
+            centroid.mean(),  # Centroid values
+            label=f"{plot_classes[cls]}",
+        )
+
+    plt.title("Class Centroids Distribution Across 512 Dimensions")
+    plt.xlabel("Dimension Index")
+    plt.ylabel("Centroid Value")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+
+    # Save the plot
+    plt.savefig("images/centroid_distribution.png")
+
+    # TSNE for 3D Visualization
+    tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, max_iter=1000)
+    tsne_features_3d = tsne_3d.fit_transform(all_features)
 
     # Plot in 3D
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
     scatter = ax.scatter(
-        pca_features[:, 0],
-        pca_features[:, 1],
-        pca_features[:, 2],
-        c=all_labels,
-        cmap="tab10",
+        tsne_features_3d[:, 0],
+        tsne_features_3d[:, 1],
+        tsne_features_3d[:, 2],
+        c=[plot_colors[label] for label in all_labels],
     )
-    legend1 = ax.legend(*scatter.legend_elements(), loc="right", title="Classes")
+
+    legend1 = ax.legend([plt.Line2D([0], [0], marker='o', color=color, linestyle='')
+                         for color in plot_colors], plot_classes, loc="right")
     ax.add_artist(legend1)
-    plt.title("Class visualization")
+    plt.title("Class visualization with T-SNE (3D)")
 
-    # plt.show()
+    # Save 3D visualization
     os.makedirs('images', exist_ok=True)
-    plt.savefig('images/latent_space_3D.png')
-    angles = np.linspace(0, 360, 100)[:-1]  # Take 20 angles between 0 and 360
-    # Remove the legend
-    legend1.remove()
-    rotanimate(ax, angles, 'images/latent_space_3D.gif', delay=100, width=7, height=6)
+    plt.savefig('images/latent_space_tsne_3D.png')
 
-    # Apply PCA for 2D
-    pca_2d = PCA(n_components=2)
-    pca_features_2d = pca_2d.fit_transform(all_features)
+    # Optional: Animate 3D visualization
+    angles = np.linspace(0, 360, 100)[:-1]
+    rotanimate(ax, angles, 'images/latent_space_tsne_3D.gif', delay=100, width=7, height=6)
+
+    # TSNE for 2D Visualization
+    tsne_2d = TSNE(n_components=2, random_state=42, perplexity=30, max_iter=1000)
+    tsne_features_2d = tsne_2d.fit_transform(all_features)
 
     # Plot in 2D
     plt.figure(figsize=(8, 6))
-    scatter = plt.scatter(
-        pca_features_2d[:, 0], pca_features_2d[:, 1], c=all_labels, cmap="tab10"
-    )
-    legend1 = plt.legend(*scatter.legend_elements(), loc="best", title="Classes")
+    scatter = plt.scatter(tsne_features_2d[:, 0], tsne_features_2d[:, 1], c=[plot_colors[label] for label in all_labels])
+    legend1 = plt.legend([plt.Line2D([0], [0], marker='o', color=color, linestyle='')
+                         for color in plot_colors], plot_classes, loc="right")
     plt.gca().add_artist(legend1)
-    plt.title("Latent Space Visualization (2D)")
-    plt.xlabel("Principal Component 1")
-    plt.ylabel("Principal Component 2")
-    plt.savefig('images/latent_space_2d.png')
+    plt.title("Latent Space Visualization with T-SNE (2D)")
+    plt.xlabel("T-SNE Component 1")
+    plt.ylabel("T-SNE Component 2")
+
+    # Save 2D visualization
+    plt.savefig('images/latent_space_tsne_2D.png')
