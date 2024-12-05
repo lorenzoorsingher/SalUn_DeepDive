@@ -143,11 +143,12 @@ if __name__ == "__main__":
             optimizer = torch.optim.SGD(model.parameters(), lr=LR)
             criterion = torch.nn.CrossEntropyLoss(reduction="none")
 
+            config = {**config, **settings}
+            config["runid"] = runid
+            config["runidx"] = expidx
+            run_name = METHOD + "_" + gen_run_name(config) + f"_{expidx}"
+
             if LOG:
-                config = {**config, **settings}
-                config["runid"] = runid
-                config["runidx"] = expidx
-                run_name = METHOD + "_" + gen_run_name(config) + f"_{expidx}"
                 wandb.init(project="TrendsAndApps", name=run_name, config=config)
 
             mask = None
@@ -289,7 +290,7 @@ if __name__ == "__main__":
                     "config": config,
                 }
 
-                model_savepath = f"{run_folder}/{runid}_{CF}.pt"
+                model_savepath = f"{run_folder}/{run_name}_{CF}.pt"
 
                 torch.save(model_savefile, model_savepath)
 
