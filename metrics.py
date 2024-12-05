@@ -48,29 +48,30 @@ def compute_basic_mia(retain_losses, forget_losses, val_losses, test_losses):
 
 def eval_unlearning(model, loaders, names, criterion, DEVICE):
 
-    model.eval()
-    tot_acc = 0
-    accs = {}
-    losses = {}
-    for loader, name in zip(loaders, names):
+    with torch.no_grad():
+        model.eval()
+        tot_acc = 0
+        accs = {}
+        losses = {}
+        for loader, name in zip(loaders, names):
 
-        losses[name] = []
-        for data in tqdm(loader):
+            losses[name] = []
+            for data in tqdm(loader):
 
-            image = data["image"]
-            target = data["label"]
-            image = image.to(DEVICE, non_blocking=True)
-            target = target.to(DEVICE, non_blocking=True)
+                image = data["image"]
+                target = data["label"]
+                image = image.to(DEVICE, non_blocking=True)
+                target = target.to(DEVICE, non_blocking=True)
 
-            output = model(image)
-            loss = criterion(output, target)
+                output = model(image)
+                loss = criterion(output, target)
 
-            losses[name].append(loss.mean().item())
+                losses[name].append(loss.mean().item())
 
-            acc = compute_topk(target, output, 1)
+                acc = compute_topk(target, output, 1)
 
-            tot_acc += acc
+                tot_acc += acc
 
-        tot_acc /= len(loader.dataset)
-        accs[name] = tot_acc
+            tot_acc /= len(loader.dataset)
+            accs[name] = tot_acc
     return accs, losses
