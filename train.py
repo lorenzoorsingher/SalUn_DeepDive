@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
     PAT = 10
     EPOCHS = 200
-    LR = 0.001
+    LR = args.lr
 
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
