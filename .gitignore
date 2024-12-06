@@ -131,3 +131,4 @@ checkpoints/*.json
 output/*/*json
 wandb/
 *.png
+*.gif
