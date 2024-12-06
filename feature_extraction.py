@@ -23,9 +23,17 @@ if __name__ == "__main__":
         type=int,
         default=200,
     )
+
+    parser.add_argument(
+        "--num-workers",
+        "-W",
+        type=int,
+        default=2,
+    )
     args = parser.parse_args()
     DIR = args.directory
     SAMPLES = args.samples
+    NUM_WORKERS = args.num_workers
 
     for d in os.listdir(DIR):
         if not d.endswith(".pt"):
@@ -48,7 +56,7 @@ if __name__ == "__main__":
             itf=None,
             cf=None,
             batch_s=1,
-            num_workers=2,
+            num_workers=NUM_WORKERS,
             pin_memory=False,
         )
 
