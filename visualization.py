@@ -212,7 +212,7 @@ if __name__ == "__main__":
                 #    all_class_features[class1], all_class_features[class2]
                 # )
                 distance = wasserstein_distance_nd(
-                    all_class_features[class1], all_class_features[class2]
+                    centroids[class1], centroids[class2]
                 )
                 wasserstein_distances[(class1, class2)] = distance
 
