@@ -128,4 +128,5 @@ cython_debug/
 data/*
 *.pt
 checkpoints/*.json
+output/*/*json
 wandb/
