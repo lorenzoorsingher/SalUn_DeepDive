@@ -1,3 +1,4 @@
+import argparse
 import os
 
 import torch
@@ -91,7 +92,18 @@ def rotanimate(ax, angles, output, **kwargs):
 
 
 if __name__ == "__main__":
-    CHECKPOINT = "checkpoints/resnet18_cifar10_pretrained_forget.pt"
+
+    parser = argparse.ArgumentParser(description="Visualize")
+
+    parser.add_argument(
+        "--checkpoint",
+        "-C",
+        type=str,
+        default="checkpoints/resnet18_cifar10_pretrained_forget.pt",
+    )
+    args = parser.parse_args()
+
+    CHECKPOINT = args.checkpoint
 
     split = [0.7, 0.2, 0.1]
     model, config, transform, opt = load_checkpoint(CHECKPOINT)
@@ -168,7 +180,7 @@ if __name__ == "__main__":
             all_features.append(latent_features)
             all_labels.append(data["label"])
 
-            if idx == 200:
+            if idx == 10000:
                 break
 
     all_features = torch.cat(all_features).numpy()
@@ -198,9 +210,11 @@ if __name__ == "__main__":
 
     # Plot the heatmap
     plt.figure(figsize=(10, 8))
-    plt.imshow(distance_matrix, cmap='viridis', interpolation='nearest')
+    plt.imshow(distance_matrix, cmap="viridis", interpolation="nearest")
     plt.colorbar(label="Wasserstein Distance")
-    plt.title(f"Wasserstein Distances Between CIFAR-10 Class Centroids exp {experiment}")
+    plt.title(
+        f"Wasserstein Distances Between CIFAR-10 Class Centroids exp {experiment}"
+    )
     plt.xlabel("Class")
     plt.ylabel("Class")
     plt.xticks(np.arange(num_classes), labels=plot_classes)
@@ -210,7 +224,15 @@ if __name__ == "__main__":
     for i in range(num_classes):
         for j in range(num_classes):
             if i != j:  # Skip diagonal
-                plt.text(j, i, f"{distance_matrix[i, j]:.2f}", ha="center", va="center", color="white", fontsize=8)
+                plt.text(
+                    j,
+                    i,
+                    f"{distance_matrix[i, j]:.2f}",
+                    ha="center",
+                    va="center",
+                    color="white",
+                    fontsize=8,
+                )
 
     plt.tight_layout()
     plt.show()
