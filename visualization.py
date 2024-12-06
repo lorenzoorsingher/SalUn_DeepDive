@@ -203,16 +203,13 @@ if __name__ == "__main__":
 
         # Compute the mean (centroid) of the features for this class
         centroids[cls] = np.mean(all_class_features[cls], axis=0)
-
+    breakpoint()
     wasserstein_distances = {}
     for class1 in all_class_features:
         for class2 in all_class_features:
             if class1 < class2:
-                # distance = wasserstein_distance_nd(
-                #    all_class_features[class1], all_class_features[class2]
-                # )
                 distance = wasserstein_distance_nd(
-                    centroids[class1], centroids[class2]
+                    all_class_features[class1], all_class_features[class2]
                 )
                 wasserstein_distances[(class1, class2)] = distance
 
