@@ -7,7 +7,7 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 
 import numpy as np
-from scipy.stats import wasserstein_distance
+from scipy.stats import wasserstein_distance, wasserstein_distance_nd
 from scipy.spatial.distance import euclidean
 from tqdm import tqdm
 from datasets import UnlearnCifar10, UnlearnCifar100, UnlearnSVNH, get_dataloaders
@@ -16,7 +16,7 @@ from PIL import Image
 
 
 def make_views(
-        ax, angles, elevation=None, width=4, height=3, prefix="tmprot_", **kwargs
+    ax, angles, elevation=None, width=4, height=3, prefix="tmprot_", **kwargs
 ):
     """
     Makes jpeg pictures of the given 3d ax, with different angles.
@@ -161,16 +161,15 @@ if __name__ == "__main__":
     )
 
     experiment = CHECKPOINT.split("/")[-1].split(".")[0]
+    os.makedirs(f"images/{experiment}/", exist_ok=True)
     # Load pretrained model
     model.eval()
 
     # Hook to extract features from an intermediate layer
     features = []
 
-
     def hook(module, input, output):
         features.append(output)
-
 
     # Register the hook to a layer (e.g., avgpool layer)
     layer = model.global_pool
@@ -197,24 +196,31 @@ if __name__ == "__main__":
 
     classes = np.unique(all_labels)
     centroids = {}
+    all_class_features = {}
     for cls in classes:
         # Get features corresponding to the current class
-        class_features = all_features[all_labels == cls]
+        all_class_features[cls] = all_features[all_labels == cls]
 
         # Compute the mean (centroid) of the features for this class
-        centroids[cls] = np.mean(class_features, axis=0)
+        centroids[cls] = np.mean(all_class_features[cls], axis=0)
 
     wasserstein_distances = {}
-    for class1 in centroids:
-        for class2 in centroids:
+    for class1 in all_class_features:
+        for class2 in all_class_features:
             if class1 < class2:
-                distance = wasserstein_distance(centroids[class1], centroids[class2])
+                # distance = wasserstein_distance_nd(
+                #    all_class_features[class1], all_class_features[class2]
+                # )
+                distance = wasserstein_distance_nd(
+                    all_class_features[class1], all_class_features[class2]
+                )
                 wasserstein_distances[(class1, class2)] = distance
 
     num_classes = len(plot_classes)
     distance_matrix = np.zeros((num_classes, num_classes))
     for (class1, class2), distance in wasserstein_distances.items():
-        distance_matrix[class1, class2] = distance
+        if class1 < class2:
+            distance_matrix[class1, class2] = distance
 
     # Plot the heatmap
     plt.figure(figsize=(10, 8))
@@ -227,12 +233,11 @@ if __name__ == "__main__":
     plt.ylabel("Class")
     plt.xticks(np.arange(num_classes), labels=plot_classes)
     plt.yticks(np.arange(num_classes), labels=plot_classes)
-    plt.savefig(f"images/{experiment}_cmat.png", dpi=300, bbox_inches='tight')
 
     # Add annotations for each cell
     for i in range(num_classes):
         for j in range(num_classes):
-            if i != j:  # Skip diagonal
+            if i < j:
                 plt.text(
                     j,
                     i,
@@ -244,7 +249,7 @@ if __name__ == "__main__":
                 )
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig(f"images/{experiment}/cmat.png", dpi=300, bbox_inches="tight")
 
     # TSNE for 3D Visualization
     tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
@@ -272,13 +277,17 @@ if __name__ == "__main__":
     plt.title(f"Class visualization with T-SNE (3D) exp {experiment}")
 
     # Save 3D visualization
-    os.makedirs("images", exist_ok=True)
-    plt.savefig("images/latent_space_tsne_3D.png")
+    plt.savefig(f"images/{experiment}/latent_space_tsne_3D.png")
 
     # Optional: Animate 3D visualization
     angles = np.linspace(0, 360, 100)[:-1]
     rotanimate(
-        ax, angles, "images/latent_space_tsne_3D.gif", delay=100, width=7, height=6
+        ax,
+        angles,
+        f"images/{experiment}/latent_space_tsne_3D.gif",
+        delay=100,
+        width=7,
+        height=6,
     )
 
     # TSNE for 2D Visualization
@@ -301,9 +310,9 @@ if __name__ == "__main__":
         loc="right",
     )
     plt.gca().add_artist(legend1)
-    plt.title("Latent Space Visualization with T-SNE (2D)")
+    plt.title(f"Latent Space Visualization with T-SNE (2D) {experiment}")
     plt.xlabel("T-SNE Component 1")
     plt.ylabel("T-SNE Component 2")
 
     # Save 2D visualization
-    plt.savefig("images/latent_space_tsne_2D.png")
+    plt.savefig(f"images/{experiment}/latent_space_tsne_2D.png")
