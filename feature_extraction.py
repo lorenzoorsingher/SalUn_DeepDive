@@ -24,8 +24,7 @@ if __name__ == "__main__":
         default=200,
     )
     args = parser.parse_args()
-    ROOT = "checkpoints/"
-    DIR = os.path.join(ROOT, args.directory)
+    DIR = args.directory
     SAMPLES = args.samples
 
     for d in os.listdir(DIR):
