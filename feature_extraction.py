@@ -6,6 +6,7 @@ import torch
 from tqdm import tqdm
 import json
 
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 if __name__ == "__main__":
 
@@ -70,6 +71,7 @@ if __name__ == "__main__":
 
         experiment = d.split("/")[-1].split(".")[0]
         # Load pretrained model
+        model.to(DEVICE)
         model.eval()
 
         # Hook to extract features from an intermediate layer
@@ -88,12 +90,13 @@ if __name__ == "__main__":
 
         with torch.no_grad():
             for idx, data in enumerate(tqdm(train_loader)):
-                model(data["image"])
+                img = data["image"].to(DEVICE)
+                model(img)
                 latent_features = (
-                    features.pop().squeeze().view(data["image"].size(0), -1)
+                    features.pop().squeeze().view(img.size(0), -1).cpu()
                 )  # Flatten
                 all_features.append(latent_features)
-                all_labels.append(data["label"])
+                all_labels.append(img)
 
                 if idx == SAMPLES:
                     break
