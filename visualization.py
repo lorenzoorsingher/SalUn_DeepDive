@@ -105,8 +105,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     SAMPLES = args.samples
 
-    split = [0.7, 0.2, 0.1]
-
     plot_classes = [
         "Plane",
         "Car",
@@ -140,140 +138,151 @@ if __name__ == "__main__":
         for folder in folders
     }
 
-    for cls, name in enumerate(plot_classes):
+    for cls, _ in enumerate(plot_classes):
+
+        # -------------- DATA LOADING -----------------------------------
         all_features = {}
-        all_labels = {}
         for folder in folders:
 
             data = json.load(open(os.path.join(folder, files[folder][cls])))
 
-            features = data["all_features"]
-            labels = data["all_labels"]
-            all_features[folder] = features
-            all_labels[folder] = labels
+            features = np.array(data["all_features"][:SAMPLES])
+            labels = np.array(data["all_labels"][:SAMPLES])
+
+            class_separated = {}
+            for idx, _ in enumerate(plot_classes):
+                class_separated[idx] = features[labels == idx]
+            all_features[folder] = class_separated
+
+        # -----------------WASSERSTEIN DISTANCE ---------------------------
+        print("Computing Wasserstein Distance")
+
+        wass_mtxs = {}
+        for folder in folders:
+
+            wass_dist = np.zeros((len(plot_classes), len(plot_classes)))
+            class_separated = all_features[folder]
+
+            for idx1, _ in enumerate(plot_classes):
+                for idx2, _ in enumerate(plot_classes):
+
+                    if idx1 < idx2:
+                        distance = wasserstein_distance_nd(
+                            class_separated[idx1], class_separated[idx2]
+                        )
+                        wass_dist[idx1, idx2] = distance
+                        print(
+                            f"Distance between {plot_classes[idx1]} and {plot_classes[idx2]} in {folder} is {distance}"
+                        )
+            wass_mtxs[folder] = wass_dist
         breakpoint()
+    # breakpoint()
+    # wasserstein_distances = {}
+    # for class1 in all_class_features:
+    #     for class2 in all_class_features:
+    #         if class1 < class2:
+    #             distance = wasserstein_distance_nd(
+    #                 all_class_features[class1], all_class_features[class2]
+    #             )
+    #             wasserstein_distances[(class1, class2)] = distance
 
-        breakpoint()
+    # num_classes = len(plot_classes)
+    # distance_matrix = np.zeros((num_classes, num_classes))
+    # for (class1, class2), distance in wasserstein_distances.items():
+    #     if class1 < class2:
+    #         distance_matrix[class1, class2] = distance
 
-    all_features = torch.cat(all_features).numpy()
-    all_labels = torch.cat(all_labels).numpy()
+    # # Plot the heatmap
+    # plt.figure(figsize=(10, 8))
+    # plt.imshow(distance_matrix, cmap="viridis", interpolation="nearest")
+    # plt.colorbar(label="Wasserstein Distance")
+    # plt.title(
+    #     f"Wasserstein Distances Between CIFAR-10 Class Centroids exp {experiment}"
+    # )
+    # plt.xlabel("Class")
+    # plt.ylabel("Class")
+    # plt.xticks(np.arange(num_classes), labels=plot_classes)
+    # plt.yticks(np.arange(num_classes), labels=plot_classes)
 
-    classes = np.unique(all_labels)
-    centroids = {}
-    all_class_features = {}
-    for cls in classes:
-        # Get features corresponding to the current class
-        all_class_features[cls] = all_features[all_labels == cls]
+    # # Add annotations for each cell
+    # for i in range(num_classes):
+    #     for j in range(num_classes):
+    #         if i < j:
+    #             plt.text(
+    #                 j,
+    #                 i,
+    #                 f"{distance_matrix[i, j]:.2f}",
+    #                 ha="center",
+    #                 va="center",
+    #                 color="white",
+    #                 fontsize=8,
+    #             )
 
-        # Compute the mean (centroid) of the features for this class
-        centroids[cls] = np.mean(all_class_features[cls], axis=0)
-    breakpoint()
-    wasserstein_distances = {}
-    for class1 in all_class_features:
-        for class2 in all_class_features:
-            if class1 < class2:
-                distance = wasserstein_distance_nd(
-                    all_class_features[class1], all_class_features[class2]
-                )
-                wasserstein_distances[(class1, class2)] = distance
+    # plt.tight_layout()
+    # plt.savefig(f"images/{experiment}/cmat.png", dpi=300, bbox_inches="tight")
 
-    num_classes = len(plot_classes)
-    distance_matrix = np.zeros((num_classes, num_classes))
-    for (class1, class2), distance in wasserstein_distances.items():
-        if class1 < class2:
-            distance_matrix[class1, class2] = distance
+    # # TSNE for 3D Visualization
+    # tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
+    # tsne_features_3d = tsne_3d.fit_transform(all_features)
 
-    # Plot the heatmap
-    plt.figure(figsize=(10, 8))
-    plt.imshow(distance_matrix, cmap="viridis", interpolation="nearest")
-    plt.colorbar(label="Wasserstein Distance")
-    plt.title(
-        f"Wasserstein Distances Between CIFAR-10 Class Centroids exp {experiment}"
-    )
-    plt.xlabel("Class")
-    plt.ylabel("Class")
-    plt.xticks(np.arange(num_classes), labels=plot_classes)
-    plt.yticks(np.arange(num_classes), labels=plot_classes)
+    # # Plot in 3D
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection="3d")
+    # scatter = ax.scatter(
+    #     tsne_features_3d[:, 0],
+    #     tsne_features_3d[:, 1],
+    #     tsne_features_3d[:, 2],
+    #     c=[plot_colors[label] for label in all_labels],
+    # )
 
-    # Add annotations for each cell
-    for i in range(num_classes):
-        for j in range(num_classes):
-            if i < j:
-                plt.text(
-                    j,
-                    i,
-                    f"{distance_matrix[i, j]:.2f}",
-                    ha="center",
-                    va="center",
-                    color="white",
-                    fontsize=8,
-                )
+    # legend1 = ax.legend(
+    #     [
+    #         plt.Line2D([0], [0], marker="o", color=color, linestyle="")
+    #         for color in plot_colors
+    #     ],
+    #     plot_classes,
+    #     loc="right",
+    # )
+    # ax.add_artist(legend1)
+    # plt.title(f"Class visualization with T-SNE (3D) exp {experiment}")
 
-    plt.tight_layout()
-    plt.savefig(f"images/{experiment}/cmat.png", dpi=300, bbox_inches="tight")
+    # # Save 3D visualization
+    # plt.savefig(f"images/{experiment}/latent_space_tsne_3D.png")
 
-    # TSNE for 3D Visualization
-    tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
-    tsne_features_3d = tsne_3d.fit_transform(all_features)
+    # # Optional: Animate 3D visualization
+    # angles = np.linspace(0, 360, 100)[:-1]
+    # rotanimate(
+    #     ax,
+    #     angles,
+    #     f"images/{experiment}/latent_space_tsne_3D.gif",
+    #     delay=100,
+    #     width=7,
+    #     height=6,
+    # )
 
-    # Plot in 3D
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
-    scatter = ax.scatter(
-        tsne_features_3d[:, 0],
-        tsne_features_3d[:, 1],
-        tsne_features_3d[:, 2],
-        c=[plot_colors[label] for label in all_labels],
-    )
+    # # TSNE for 2D Visualization
+    # tsne_2d = TSNE(n_components=2, random_state=42, perplexity=30, n_iter=1000)
+    # tsne_features_2d = tsne_2d.fit_transform(all_features)
 
-    legend1 = ax.legend(
-        [
-            plt.Line2D([0], [0], marker="o", color=color, linestyle="")
-            for color in plot_colors
-        ],
-        plot_classes,
-        loc="right",
-    )
-    ax.add_artist(legend1)
-    plt.title(f"Class visualization with T-SNE (3D) exp {experiment}")
+    # # Plot in 2D
+    # plt.figure(figsize=(8, 6))
+    # scatter = plt.scatter(
+    #     tsne_features_2d[:, 0],
+    #     tsne_features_2d[:, 1],
+    #     c=[plot_colors[label] for label in all_labels],
+    # )
+    # legend1 = plt.legend(
+    #     [
+    #         plt.Line2D([0], [0], marker="o", color=color, linestyle="")
+    #         for color in plot_colors
+    #     ],
+    #     plot_classes,
+    #     loc="right",
+    # )
+    # plt.gca().add_artist(legend1)
+    # plt.title(f"Latent Space Visualization with T-SNE (2D) {experiment}")
+    # plt.xlabel("T-SNE Component 1")
+    # plt.ylabel("T-SNE Component 2")
 
-    # Save 3D visualization
-    plt.savefig(f"images/{experiment}/latent_space_tsne_3D.png")
-
-    # Optional: Animate 3D visualization
-    angles = np.linspace(0, 360, 100)[:-1]
-    rotanimate(
-        ax,
-        angles,
-        f"images/{experiment}/latent_space_tsne_3D.gif",
-        delay=100,
-        width=7,
-        height=6,
-    )
-
-    # TSNE for 2D Visualization
-    tsne_2d = TSNE(n_components=2, random_state=42, perplexity=30, n_iter=1000)
-    tsne_features_2d = tsne_2d.fit_transform(all_features)
-
-    # Plot in 2D
-    plt.figure(figsize=(8, 6))
-    scatter = plt.scatter(
-        tsne_features_2d[:, 0],
-        tsne_features_2d[:, 1],
-        c=[plot_colors[label] for label in all_labels],
-    )
-    legend1 = plt.legend(
-        [
-            plt.Line2D([0], [0], marker="o", color=color, linestyle="")
-            for color in plot_colors
-        ],
-        plot_classes,
-        loc="right",
-    )
-    plt.gca().add_artist(legend1)
-    plt.title(f"Latent Space Visualization with T-SNE (2D) {experiment}")
-    plt.xlabel("T-SNE Component 1")
-    plt.ylabel("T-SNE Component 2")
-
-    # Save 2D visualization
-    plt.savefig(f"images/{experiment}/latent_space_tsne_2D.png")
+    # # Save 2D visualization
+    # plt.savefig(f"images/{experiment}/latent_space_tsne_2D.png")
