@@ -161,6 +161,8 @@ if __name__ == "__main__":
         for folder in folders:
 
             wass_dist = np.zeros((len(plot_classes), len(plot_classes)))
+
+            wass_dist[:] = np.nan
             class_separated = all_features[folder]
 
             for idx1, _ in enumerate(plot_classes):
@@ -175,6 +177,19 @@ if __name__ == "__main__":
                             f"Distance between {plot_classes[idx1]} and {plot_classes[idx2]} in {folder} is {distance}"
                         )
             wass_mtxs[folder] = wass_dist
+
+            # Plot the heatmap
+            plt.figure(figsize=(10, 8))
+            plt.imshow(wass_dist, cmap="viridis", interpolation="nearest")
+            plt.colorbar(label="Wasserstein Distance")
+            plt.title(f"Wasserstein Distances Between CIFAR-10 Classes in {folder}")
+            plt.xlabel("Class")
+            plt.ylabel("Class")
+            plt.xticks(np.arange(len(plot_classes)), labels=plot_classes)
+            plt.yticks(np.arange(len(plot_classes)), labels=plot_classes)
+            plt.show()
+
+        # ----------------- COMPUTE DELTAS -------------------------------------------
         breakpoint()
     # breakpoint()
     # wasserstein_distances = {}
