@@ -41,6 +41,7 @@ if __name__ == "__main__":
     DIR = args.directory
     SAMPLES = args.samples
     NUM_WORKERS = args.num_workers
+    BATCH_SIZE = args.batch_size
 
     for d in os.listdir(DIR):
         if not d.endswith(".pt"):
