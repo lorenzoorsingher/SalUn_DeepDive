@@ -96,7 +96,7 @@ if __name__ == "__main__":
                     features.pop().squeeze().view(img.size(0), -1).cpu()
                 )  # Flatten
                 all_features.append(latent_features)
-                all_labels.append(img)
+                all_labels.append(img.cpu())
 
                 if idx == SAMPLES:
                     break
