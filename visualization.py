@@ -6,7 +6,8 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
+from scipy.stats import wasserstein_distance
+from scipy.spatial.distance import euclidean
 from tqdm import tqdm
 from datasets import UnlearnCifar10, UnlearnCifar100, UnlearnSVNH, get_dataloaders
 from utils import load_checkpoint
@@ -90,10 +91,10 @@ def rotanimate(ax, angles, output, **kwargs):
 
 
 if __name__ == "__main__":
+    CHECKPOINT = "checkpoints/resnet18_cifar10_pretrained_forget.pt"
+
     split = [0.7, 0.2, 0.1]
-    model, config, transform, opt = load_checkpoint(
-        "checkpoints/resnet18_cifar10_pretrained_best.pt"
-    )
+    model, config, transform, opt = load_checkpoint(CHECKPOINT)
     DSET = config["dataset"]
 
     plot_classes = [
@@ -140,6 +141,7 @@ if __name__ == "__main__":
         pin_memory=False,
     )
 
+    experiment = CHECKPOINT.split("/")[-1].split(".")[0]
     # Load pretrained model
     model.eval()
 
@@ -181,24 +183,37 @@ if __name__ == "__main__":
         # Compute the mean (centroid) of the features for this class
         centroids[cls] = np.mean(class_features, axis=0)
 
-    plt.figure(figsize=(10, 6))
+    wasserstein_distances = {}
+    for class1 in centroids:
+        for class2 in centroids:
+            if class1 < class2:
+                distance = wasserstein_distance(centroids[class1], centroids[class2])
+                wasserstein_distances[(class1, class2)] = distance
 
-    for cls, centroid in centroids.items():
-        plt.bar(
-            cls,  # 512 dimensions
-            centroid.mean(),  # Centroid values
-            label=f"{plot_classes[cls]}",
-        )
+    num_classes = len(plot_classes)
+    distance_matrix = np.zeros((num_classes, num_classes))
+    for (class1, class2), distance in wasserstein_distances.items():
+        distance_matrix[class1, class2] = distance
+        distance_matrix[class2, class1] = distance  # Symmetric
 
-    plt.title("Class Centroids Distribution Across 512 Dimensions")
-    plt.xlabel("Dimension Index")
-    plt.ylabel("Centroid Value")
-    plt.legend()
-    plt.grid(True)
+    # Plot the heatmap
+    plt.figure(figsize=(10, 8))
+    plt.imshow(distance_matrix, cmap='viridis', interpolation='nearest')
+    plt.colorbar(label="Wasserstein Distance")
+    plt.title(f"Wasserstein Distances Between CIFAR-10 Class Centroids exp {experiment}")
+    plt.xlabel("Class")
+    plt.ylabel("Class")
+    plt.xticks(np.arange(num_classes), labels=plot_classes)
+    plt.yticks(np.arange(num_classes), labels=plot_classes)
+
+    # Add annotations for each cell
+    for i in range(num_classes):
+        for j in range(num_classes):
+            if i != j:  # Skip diagonal
+                plt.text(j, i, f"{distance_matrix[i, j]:.2f}", ha="center", va="center", color="white", fontsize=8)
+
     plt.tight_layout()
-
-    # Save the plot
-    plt.savefig("images/centroid_distribution.png")
+    plt.show()
 
     # TSNE for 3D Visualization
     tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, max_iter=1000)
@@ -223,7 +238,7 @@ if __name__ == "__main__":
         loc="right",
     )
     ax.add_artist(legend1)
-    plt.title("Class visualization with T-SNE (3D)")
+    plt.title(f"Class visualization with T-SNE (3D) exp {experiment}")
 
     # Save 3D visualization
     os.makedirs("images", exist_ok=True)
