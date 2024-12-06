@@ -9,6 +9,7 @@ from torchvision import datasets, transforms
 import json
 import pandas as pd
 
+
 class UnlearningDataset(Dataset):
     def __init__(
         self,
@@ -99,10 +100,12 @@ class UnlearningDataset(Dataset):
         self.VAL = random.sample(self.RETAIN, int(len(self.RETAIN) * self.val_split))
         self.RETAIN = list(set(self.RETAIN) - set(self.VAL))
         self.TRAIN = list(set(self.TRAIN) - set(self.VAL))
-    
-    def get_samples(self, class_to_retreive = 0, n_samples = 10 ):
+
+    def get_samples(self, class_to_retreive=0, n_samples=10):
         samples = []
-        concatenated_index = pd.concat([pd.Series(index) for index in [self.VAL, self.TRAIN, self.TEST]]).index
+        concatenated_index = pd.concat(
+            [pd.Series(index) for index in [self.VAL, self.TRAIN, self.TEST]]
+        ).index
         for idx in concatenated_index:
             if self.data[idx][1] == class_to_retreive:
                 samples.append(self.data[idx])
@@ -229,6 +232,7 @@ def get_dataloaders(
     split=[0.7, 0.2, 0.1],
     batch_s=32,
     num_workers=8,
+    pin_memory=True,
 ):
 
     if dataname == "cifar10":
@@ -264,42 +268,42 @@ def get_dataloaders(
         batch_size=batch_s,
         shuffle=True,
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=pin_memory,
     )
     val_l = DataLoader(
         val_set,
         batch_size=batch_s,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=pin_memory,
     )
     test_l = DataLoader(
         test_set,
         batch_size=batch_s,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=pin_memory,
     )
     forget_l = DataLoader(
         forget_set,
         batch_size=batch_s,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=pin_memory,
     )
     retain_l = DataLoader(
         retain_set,
         batch_size=batch_s,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=pin_memory,
     )
     shadow_l = DataLoader(
         shadow_set,
         batch_size=batch_s,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=True,
+        pin_memory=pin_memory,
     )
 
     return train_l, val_l, test_l, forget_l, retain_l, shadow_l

@@ -13,7 +13,9 @@ from utils import load_checkpoint
 from PIL import Image
 
 
-def make_views(ax, angles, elevation=None, width=4, height=3, prefix='tmprot_', **kwargs):
+def make_views(
+    ax, angles, elevation=None, width=4, height=3, prefix="tmprot_", **kwargs
+):
     """
     Makes jpeg pictures of the given 3d ax, with different angles.
     Args:
@@ -31,7 +33,7 @@ def make_views(ax, angles, elevation=None, width=4, height=3, prefix='tmprot_', 
 
     for i, angle in enumerate(angles):
         ax.view_init(elev=elevation, azim=angle)
-        fname = '%s%03d.jpeg' % (prefix, i)
+        fname = "%s%03d.jpeg" % (prefix, i)
         ax.figure.savefig(fname)
         files.append(fname)
 
@@ -57,7 +59,7 @@ def make_gif(files, output, delay=100, loop=0, **kwargs):
         save_all=True,
         append_images=frames[1:],  # Include the other frames
         duration=delay,  # Duration of each frame in ms
-        loop=loop  # Number of loops
+        loop=loop,  # Number of loops
     )
 
 
@@ -78,7 +80,7 @@ def rotanimate(ax, angles, output, **kwargs):
     """
 
     output_ext = os.path.splitext(output)[1]
-    assert output_ext == '.gif', "The output file must be a .gif"
+    assert output_ext == ".gif", "The output file must be a .gif"
     files = make_views(ax, angles, **kwargs)
 
     make_gif(files, output, **kwargs)
@@ -94,12 +96,30 @@ if __name__ == "__main__":
     )
     DSET = config["dataset"]
 
-    plot_classes = ['Plane', 'Car', 'Bird', 'Cat', 'Deer', 'Dog', 'Frog', 'Horse', 'Ship', 'Truck']
+    plot_classes = [
+        "Plane",
+        "Car",
+        "Bird",
+        "Cat",
+        "Deer",
+        "Dog",
+        "Frog",
+        "Horse",
+        "Ship",
+        "Truck",
+    ]
 
     plot_colors = [
-        'blue', 'red', 'green', 'orange',
-        'brown', 'purple', 'pink', 'gray',
-        'cyan', 'yellow'
+        "blue",
+        "red",
+        "green",
+        "orange",
+        "brown",
+        "purple",
+        "pink",
+        "gray",
+        "cyan",
+        "yellow",
     ]
 
     (
@@ -109,7 +129,16 @@ if __name__ == "__main__":
         forget_loader,
         retain_loader,
         _,
-    ) = get_dataloaders(DSET, transform, unlr=0, itf=None, cf=None, batch_s=1, num_workers=2)
+    ) = get_dataloaders(
+        DSET,
+        transform,
+        unlr=0,
+        itf=None,
+        cf=None,
+        batch_s=1,
+        num_workers=2,
+        pin_memory=False,
+    )
 
     # Load pretrained model
     model.eval()
@@ -117,10 +146,8 @@ if __name__ == "__main__":
     # Hook to extract features from an intermediate layer
     features = []
 
-
     def hook(module, input, output):
         features.append(output)
-
 
     # Register the hook to a layer (e.g., avgpool layer)
     layer = model.global_pool
@@ -133,7 +160,9 @@ if __name__ == "__main__":
     with torch.no_grad():
         for idx, data in enumerate(tqdm(train_loader)):
             model(data["image"])
-            latent_features = (features.pop().squeeze().view(data["image"].size(0), -1))  # Flatten
+            latent_features = (
+                features.pop().squeeze().view(data["image"].size(0), -1)
+            )  # Flatten
             all_features.append(latent_features)
             all_labels.append(data["label"])
 
@@ -185,18 +214,26 @@ if __name__ == "__main__":
         c=[plot_colors[label] for label in all_labels],
     )
 
-    legend1 = ax.legend([plt.Line2D([0], [0], marker='o', color=color, linestyle='')
-                         for color in plot_colors], plot_classes, loc="right")
+    legend1 = ax.legend(
+        [
+            plt.Line2D([0], [0], marker="o", color=color, linestyle="")
+            for color in plot_colors
+        ],
+        plot_classes,
+        loc="right",
+    )
     ax.add_artist(legend1)
     plt.title("Class visualization with T-SNE (3D)")
 
     # Save 3D visualization
-    os.makedirs('images', exist_ok=True)
-    plt.savefig('images/latent_space_tsne_3D.png')
+    os.makedirs("images", exist_ok=True)
+    plt.savefig("images/latent_space_tsne_3D.png")
 
     # Optional: Animate 3D visualization
     angles = np.linspace(0, 360, 100)[:-1]
-    rotanimate(ax, angles, 'images/latent_space_tsne_3D.gif', delay=100, width=7, height=6)
+    rotanimate(
+        ax, angles, "images/latent_space_tsne_3D.gif", delay=100, width=7, height=6
+    )
 
     # TSNE for 2D Visualization
     tsne_2d = TSNE(n_components=2, random_state=42, perplexity=30, max_iter=1000)
@@ -204,13 +241,23 @@ if __name__ == "__main__":
 
     # Plot in 2D
     plt.figure(figsize=(8, 6))
-    scatter = plt.scatter(tsne_features_2d[:, 0], tsne_features_2d[:, 1], c=[plot_colors[label] for label in all_labels])
-    legend1 = plt.legend([plt.Line2D([0], [0], marker='o', color=color, linestyle='')
-                         for color in plot_colors], plot_classes, loc="right")
+    scatter = plt.scatter(
+        tsne_features_2d[:, 0],
+        tsne_features_2d[:, 1],
+        c=[plot_colors[label] for label in all_labels],
+    )
+    legend1 = plt.legend(
+        [
+            plt.Line2D([0], [0], marker="o", color=color, linestyle="")
+            for color in plot_colors
+        ],
+        plot_classes,
+        loc="right",
+    )
     plt.gca().add_artist(legend1)
     plt.title("Latent Space Visualization with T-SNE (2D)")
     plt.xlabel("T-SNE Component 1")
     plt.ylabel("T-SNE Component 2")
 
     # Save 2D visualization
-    plt.savefig('images/latent_space_tsne_2D.png')
+    plt.savefig("images/latent_space_tsne_2D.png")
