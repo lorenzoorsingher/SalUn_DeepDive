@@ -7,6 +7,8 @@ import numpy as np
 
 from tqdm import tqdm
 from dotenv import load_dotenv
+from torch.optim.lr_scheduler import CosineAnnealingLR
+
 
 from methods import rand_label, grad_ascent, grad_ascent_small, retrain, compute_mask
 from utils import (
@@ -19,6 +21,14 @@ from utils import (
 )
 from metrics import compute_basic_mia, eval_unlearning
 from datasets import get_dataloaders
+
+
+class MockScheduler:
+    def __init__(self):
+        pass
+
+    def step(self):
+        pass
 
 
 def train(model, loader, method, criterion, optimizer, device, mask=None):
@@ -203,18 +213,23 @@ if __name__ == "__main__":
             if METHOD == "rl":
                 method = rand_label
                 loader = train_loader
+                scheduler = MockScheduler()
             if METHOD == "rl_split":
                 method = rand_label
                 loader = forget_loader
+                scheduler = MockScheduler()
             elif METHOD == "ga":
                 method = grad_ascent
                 loader = train_loader
+                scheduler = CosineAnnealingLR(optimizer, EPOCHS)
             elif METHOD == "ga_small":
                 method = grad_ascent_small
                 loader = forget_loader
+                scheduler = MockScheduler()
             elif METHOD == "retrain":
                 method = retrain
                 loader = retain_loader
+                scheduler = MockScheduler()
 
             for epoch in range(EPOCHS):
 
@@ -233,6 +248,8 @@ if __name__ == "__main__":
                         DEVICE,
                         mask,
                     )
+                print(f"Learning rate: {optimizer.param_groups[0]['lr']}")
+                scheduler.step()
 
                 # -------------------------------------------------------------
 

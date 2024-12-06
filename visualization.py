@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 
 import torch
@@ -96,25 +97,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Visualize")
 
     parser.add_argument(
-        "--checkpoint",
-        "-C",
-        type=str,
-        default="checkpoints/resnet18_cifar10_pretrained_forget.pt",
-    )
-    parser.add_argument(
         "--samples",
         "-S",
         type=int,
         default=200,
     )
     args = parser.parse_args()
-
-    CHECKPOINT = args.checkpoint
     SAMPLES = args.samples
 
     split = [0.7, 0.2, 0.1]
-    model, config, transform, opt = load_checkpoint(CHECKPOINT)
-    DSET = config["dataset"]
 
     plot_classes = [
         "Plane",
@@ -142,54 +133,27 @@ if __name__ == "__main__":
         "yellow",
     ]
 
-    (
-        train_loader,
-        val_loader,
-        test_loader,
-        forget_loader,
-        retain_loader,
-        _,
-    ) = get_dataloaders(
-        DSET,
-        transform,
-        unlr=0,
-        itf=None,
-        cf=None,
-        batch_s=1,
-        num_workers=2,
-        pin_memory=False,
-    )
+    folders = ["features/retrained", "features/salun_per_class"]
 
-    experiment = CHECKPOINT.split("/")[-1].split(".")[0]
-    os.makedirs(f"images/{experiment}/", exist_ok=True)
-    # Load pretrained model
-    model.eval()
+    files = {
+        folder: {int(n.split(".")[0].split("_")[-1]): n for n in os.listdir(folder)}
+        for folder in folders
+    }
 
-    # Hook to extract features from an intermediate layer
-    features = []
+    for cls, name in enumerate(plot_classes):
+        all_features = {}
+        all_labels = {}
+        for folder in folders:
 
-    def hook(module, input, output):
-        features.append(output)
+            data = json.load(open(os.path.join(folder, files[folder][cls])))
 
-    # Register the hook to a layer (e.g., avgpool layer)
-    layer = model.global_pool
-    layer.register_forward_hook(hook)
+            features = data["all_features"]
+            labels = data["all_labels"]
+            all_features[folder] = features
+            all_labels[folder] = labels
+        breakpoint()
 
-    # Extract latent features
-    all_features = []
-    all_labels = []
-
-    with torch.no_grad():
-        for idx, data in enumerate(tqdm(train_loader)):
-            model(data["image"])
-            latent_features = (
-                features.pop().squeeze().view(data["image"].size(0), -1)
-            )  # Flatten
-            all_features.append(latent_features)
-            all_labels.append(data["label"])
-
-            if idx == SAMPLES:
-                break
+        breakpoint()
 
     all_features = torch.cat(all_features).numpy()
     all_labels = torch.cat(all_labels).numpy()
