@@ -16,7 +16,7 @@ from PIL import Image
 
 
 def make_views(
-    ax, angles, elevation=None, width=4, height=3, prefix="tmprot_", **kwargs
+        ax, angles, elevation=None, width=4, height=3, prefix="tmprot_", **kwargs
 ):
     """
     Makes jpeg pictures of the given 3d ax, with different angles.
@@ -101,9 +101,16 @@ if __name__ == "__main__":
         type=str,
         default="checkpoints/resnet18_cifar10_pretrained_forget.pt",
     )
+    parser.add_argument(
+        "--samples",
+        "-S",
+        type=int,
+        default=200,
+    )
     args = parser.parse_args()
 
     CHECKPOINT = args.checkpoint
+    SAMPLES = args.samples
 
     split = [0.7, 0.2, 0.1]
     model, config, transform, opt = load_checkpoint(CHECKPOINT)
@@ -160,8 +167,10 @@ if __name__ == "__main__":
     # Hook to extract features from an intermediate layer
     features = []
 
+
     def hook(module, input, output):
         features.append(output)
+
 
     # Register the hook to a layer (e.g., avgpool layer)
     layer = model.global_pool
@@ -180,7 +189,7 @@ if __name__ == "__main__":
             all_features.append(latent_features)
             all_labels.append(data["label"])
 
-            if idx == 10000:
+            if idx == SAMPLES:
                 break
 
     all_features = torch.cat(all_features).numpy()
@@ -206,7 +215,6 @@ if __name__ == "__main__":
     distance_matrix = np.zeros((num_classes, num_classes))
     for (class1, class2), distance in wasserstein_distances.items():
         distance_matrix[class1, class2] = distance
-        distance_matrix[class2, class1] = distance  # Symmetric
 
     # Plot the heatmap
     plt.figure(figsize=(10, 8))
@@ -219,6 +227,7 @@ if __name__ == "__main__":
     plt.ylabel("Class")
     plt.xticks(np.arange(num_classes), labels=plot_classes)
     plt.yticks(np.arange(num_classes), labels=plot_classes)
+    plt.savefig(f"images/{experiment}_cmat.png", dpi=300, bbox_inches='tight')
 
     # Add annotations for each cell
     for i in range(num_classes):
@@ -238,7 +247,7 @@ if __name__ == "__main__":
     plt.show()
 
     # TSNE for 3D Visualization
-    tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, max_iter=1000)
+    tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
     tsne_features_3d = tsne_3d.fit_transform(all_features)
 
     # Plot in 3D
@@ -273,7 +282,7 @@ if __name__ == "__main__":
     )
 
     # TSNE for 2D Visualization
-    tsne_2d = TSNE(n_components=2, random_state=42, perplexity=30, max_iter=1000)
+    tsne_2d = TSNE(n_components=2, random_state=42, perplexity=30, n_iter=1000)
     tsne_features_2d = tsne_2d.fit_transform(all_features)
 
     # Plot in 2D
