@@ -30,6 +30,13 @@ if __name__ == "__main__":
         type=int,
         default=2,
     )
+
+    parser.add_argument(
+        "--batch-size",
+        "-B",
+        type=int,
+        default=32,
+    )
     args = parser.parse_args()
     DIR = args.directory
     SAMPLES = args.samples
@@ -55,7 +62,7 @@ if __name__ == "__main__":
             unlr=0,
             itf=None,
             cf=None,
-            batch_s=1,
+            batch_s=BATCH_SIZE,
             num_workers=NUM_WORKERS,
             pin_memory=False,
         )
