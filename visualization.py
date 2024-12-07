@@ -36,8 +36,8 @@ def make_views(
 
     for i, angle in enumerate(angles):
         ax.view_init(elev=elevation, azim=angle)
-        fname = "%s%03d.jpeg" % (prefix, i)
-        ax.figure.savefig(fname)
+        fname = "%s%03d.png" % (prefix, i)
+        ax.figure.savefig(fname, dpi=ax.figure.dpi)
         files.append(fname)
 
     return files
@@ -142,6 +142,8 @@ if __name__ == "__main__":
 
         # -------------- DATA LOADING -----------------------------------
         all_features = {}
+        all_labels_tsne = {}
+        pre_tsne_feat = {}
         for folder in folders:
 
             data = json.load(open(os.path.join(folder, files[folder][cls])))
@@ -153,12 +155,33 @@ if __name__ == "__main__":
             for idx, _ in enumerate(plot_classes):
                 class_separated[idx] = features[labels == idx]
             all_features[folder] = class_separated
+            # ----------------- TSNE data preparation ----------------------
+            pre_tsne_feat[folder] = np.concat(
+                [feat for _, feat in all_features[folder].items()]
+            )
+            all_labels_tsne[folder] = np.concat(
+                [[i] * len(f) for i, f in all_features[folder].items()]
+            )
 
-        # -----------------WASSERSTEIN DISTANCE ---------------------------
+        # ----------------- WASSERSTEIN DISTANCE ---------------------------
         print("Computing Wasserstein Distance")
 
+        # ------------------ TSNE for 3D Visualization ---------------------
+        tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
+        tsne_features_3d = np.split(
+            tsne_3d.fit_transform(np.concat([p for _, p in pre_tsne_feat.items()])),
+            len(pre_tsne_feat),
+        )
+
+        # ------------------ TSNE for 2D Visualization ---------------------
+        tsne_2d = TSNE(n_components=2, random_state=42, perplexity=30, n_iter=1000)
+        tsne_features_2d = np.split(
+            tsne_2d.fit_transform(np.concat([p for _, p in pre_tsne_feat.items()])),
+            len(pre_tsne_feat),
+        )
+
         wass_mtxs = {}
-        for folder in folders:
+        for i, folder in enumerate(folders):
 
             wass_dist = np.zeros((len(plot_classes), len(plot_classes)))
             class_separated = all_features[folder]
@@ -171,118 +194,75 @@ if __name__ == "__main__":
                             class_separated[idx1], class_separated[idx2]
                         )
                         wass_dist[idx1, idx2] = distance
-                        print(
-                            f"Distance between {plot_classes[idx1]} and {plot_classes[idx2]} in {folder} is {distance}"
-                        )
+
             wass_mtxs[folder] = wass_dist
-        breakpoint()
-    # breakpoint()
-    # wasserstein_distances = {}
-    # for class1 in all_class_features:
-    #     for class2 in all_class_features:
-    #         if class1 < class2:
-    #             distance = wasserstein_distance_nd(
-    #                 all_class_features[class1], all_class_features[class2]
-    #             )
-    #             wasserstein_distances[(class1, class2)] = distance
+            os.makedirs(f"images/{folder}", exist_ok=True)
 
-    # num_classes = len(plot_classes)
-    # distance_matrix = np.zeros((num_classes, num_classes))
-    # for (class1, class2), distance in wasserstein_distances.items():
-    #     if class1 < class2:
-    #         distance_matrix[class1, class2] = distance
+            # ----------------- TSNE plots creation -------------------
+            # Plot in 3D
+            fig = plt.figure(figsize=(8, 6))
+            ax = fig.add_subplot(111, projection="3d")
+            scatter = ax.scatter(
+                tsne_features_3d[i][:, 0],
+                tsne_features_3d[i][:, 1],
+                tsne_features_3d[i][:, 2],
+                c=[plot_colors[label] for label in all_labels_tsne[folder]],
+            )
 
-    # # Plot the heatmap
-    # plt.figure(figsize=(10, 8))
-    # plt.imshow(distance_matrix, cmap="viridis", interpolation="nearest")
-    # plt.colorbar(label="Wasserstein Distance")
-    # plt.title(
-    #     f"Wasserstein Distances Between CIFAR-10 Class Centroids exp {experiment}"
-    # )
-    # plt.xlabel("Class")
-    # plt.ylabel("Class")
-    # plt.xticks(np.arange(num_classes), labels=plot_classes)
-    # plt.yticks(np.arange(num_classes), labels=plot_classes)
+            legend1 = ax.legend(
+                [
+                    plt.Line2D([0], [0], marker="o", color=color, linestyle="")
+                    for color in plot_colors
+                ],
+                plot_classes,
+                loc="center left",
+                bbox_to_anchor=(1.05, 0.5),
+            )
+            ax.add_artist(legend1)
+            plt.title(f"Class visualization with T-SNE (3D) exp {folder}_class{cls}")
+            fig.tight_layout()
+            # plt.show()
+            # Save 3D visualization
+            plt.savefig(
+                f"images/{folder}/latent_space_tsne_3D_class{cls}.png", dpi=fig.dpi
+            )
 
-    # # Add annotations for each cell
-    # for i in range(num_classes):
-    #     for j in range(num_classes):
-    #         if i < j:
-    #             plt.text(
-    #                 j,
-    #                 i,
-    #                 f"{distance_matrix[i, j]:.2f}",
-    #                 ha="center",
-    #                 va="center",
-    #                 color="white",
-    #                 fontsize=8,
-    #             )
+            # Optional: Animate 3D visualization
+            angles = np.linspace(0, 360, 100)[:-1]
+            rotanimate(
+                ax,
+                angles,
+                f"images/{folder}/latent_space_tsne_3D_class{cls}.gif",
+                delay=100,
+                width=8,
+                height=6,
+            )
+            plt.close(fig)
 
-    # plt.tight_layout()
-    # plt.savefig(f"images/{experiment}/cmat.png", dpi=300, bbox_inches="tight")
-
-    # # TSNE for 3D Visualization
-    # tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
-    # tsne_features_3d = tsne_3d.fit_transform(all_features)
-
-    # # Plot in 3D
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection="3d")
-    # scatter = ax.scatter(
-    #     tsne_features_3d[:, 0],
-    #     tsne_features_3d[:, 1],
-    #     tsne_features_3d[:, 2],
-    #     c=[plot_colors[label] for label in all_labels],
-    # )
-
-    # legend1 = ax.legend(
-    #     [
-    #         plt.Line2D([0], [0], marker="o", color=color, linestyle="")
-    #         for color in plot_colors
-    #     ],
-    #     plot_classes,
-    #     loc="right",
-    # )
-    # ax.add_artist(legend1)
-    # plt.title(f"Class visualization with T-SNE (3D) exp {experiment}")
-
-    # # Save 3D visualization
-    # plt.savefig(f"images/{experiment}/latent_space_tsne_3D.png")
-
-    # # Optional: Animate 3D visualization
-    # angles = np.linspace(0, 360, 100)[:-1]
-    # rotanimate(
-    #     ax,
-    #     angles,
-    #     f"images/{experiment}/latent_space_tsne_3D.gif",
-    #     delay=100,
-    #     width=7,
-    #     height=6,
-    # )
-
-    # # TSNE for 2D Visualization
-    # tsne_2d = TSNE(n_components=2, random_state=42, perplexity=30, n_iter=1000)
-    # tsne_features_2d = tsne_2d.fit_transform(all_features)
-
-    # # Plot in 2D
-    # plt.figure(figsize=(8, 6))
-    # scatter = plt.scatter(
-    #     tsne_features_2d[:, 0],
-    #     tsne_features_2d[:, 1],
-    #     c=[plot_colors[label] for label in all_labels],
-    # )
-    # legend1 = plt.legend(
-    #     [
-    #         plt.Line2D([0], [0], marker="o", color=color, linestyle="")
-    #         for color in plot_colors
-    #     ],
-    #     plot_classes,
-    #     loc="right",
-    # )
-    # plt.gca().add_artist(legend1)
-    # plt.title(f"Latent Space Visualization with T-SNE (2D) {experiment}")
-    # plt.xlabel("T-SNE Component 1")
-    # plt.ylabel("T-SNE Component 2")
-
-    # # Save 2D visualization
-    # plt.savefig(f"images/{experiment}/latent_space_tsne_2D.png")
+            # Plot in 2D
+            plt.figure(figsize=(8, 6))
+            fig = plt.figure()
+            scatter = plt.scatter(
+                tsne_features_2d[i][:, 0],
+                tsne_features_2d[i][:, 1],
+                c=[plot_colors[label] for label in all_labels_tsne[folder]],
+            )
+            plt.legend(
+                [
+                    plt.Line2D([0], [0], marker="o", color=color, linestyle="")
+                    for color in plot_colors
+                ],
+                plot_classes,
+                loc="center left",
+                bbox_to_anchor=(1.05, 0.5),
+            )
+            plt.title(f"Latent Space Visualization with T-SNE (2D) {folder}_class{cls}")
+            plt.xlabel("T-SNE Component 1")
+            plt.ylabel("T-SNE Component 2")
+            fig.tight_layout()
+            # plt.show()
+            # Save 2D visualization
+            plt.savefig(
+                f"images/{folder}/latent_space_tsne_2D_class{cls}.png", dpi=fig.dpi
+            )
+            plt.close(fig)
