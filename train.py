@@ -82,6 +82,7 @@ def get_args():
     parser.add_argument("--comment", type=str, default="pretrained")
     parser.add_argument("--lr", type=float, default=0.1)
     parser.add_argument("--pat", type=int, default=10)
+    parser.add_argument("--epochs", type=int, default=182)
 
     # Set this to 0 to train on all data
     parser.add_argument("--unlr", type=float, default=None)  # unlearning ratio.
@@ -111,7 +112,7 @@ if __name__ == "__main__":
     CF = args.cf
 
     PAT = args.pat
-    EPOCHS = 200
+    EPOCHS = args.epochs
     LR = args.lr
 
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -152,9 +153,10 @@ if __name__ == "__main__":
         model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4
     )
     criterion = torch.nn.CrossEntropyLoss()
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode="max", factor=0.2, patience=5, verbose=True
-    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, EPOCHS)
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    #     optimizer, mode="max", factor=0.2, patience=5, verbose=True
+    # )
 
     print("Training model")
 
