@@ -175,7 +175,8 @@ if __name__ == "__main__":
                 model, forget_loader, criterion, DEVICE
             )
 
-        scheduler.step(val_top1)
+        # scheduler.step(val_top1)
+        scheduler.step()
 
         print(f"lr: {optimizer.param_groups[0]['lr']}")
 
