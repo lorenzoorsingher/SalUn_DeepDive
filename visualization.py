@@ -131,7 +131,7 @@ if __name__ == "__main__":
         "yellow",
     ]
 
-    folders = ["features/retrained", "features/salun_per_class"]
+    folders = ["features/retrained", "features/salun_per_class", "features/base"]
 
     files = {
         folder: {int(n.split(".")[0].split("_")[-1]): n for n in os.listdir(folder)}
@@ -139,6 +139,8 @@ if __name__ == "__main__":
     }
 
     for cls, _ in enumerate(plot_classes):
+
+        print(f"Current experiment: unlearned class {cls}")
 
         # -------------- DATA LOADING -----------------------------------
         all_features = {}
@@ -184,6 +186,8 @@ if __name__ == "__main__":
         for i, folder in enumerate(folders):
 
             wass_dist = np.zeros((len(plot_classes), len(plot_classes)))
+
+            wass_dist[:] = np.nan
             class_separated = all_features[folder]
 
             for idx1, _ in enumerate(plot_classes):
@@ -197,6 +201,17 @@ if __name__ == "__main__":
 
             wass_mtxs[folder] = wass_dist
             os.makedirs(f"images/{folder}", exist_ok=True)
+
+            # Plot the heatmap
+            plt.figure(figsize=(10, 8))
+            plt.imshow(wass_dist, cmap="viridis", interpolation="nearest")
+            plt.colorbar(label="Wasserstein Distance")
+            plt.title(f"Wasserstein Distances Between Classes in {folder} exp {cls}")
+            plt.xlabel("Class")
+            plt.ylabel("Class")
+            plt.xticks(np.arange(len(plot_classes)), labels=plot_classes)
+            plt.yticks(np.arange(len(plot_classes)), labels=plot_classes)
+            plt.show()
 
             # ----------------- TSNE plots creation -------------------
             # Plot in 3D
@@ -266,3 +281,23 @@ if __name__ == "__main__":
                 f"images/{folder}/latent_space_tsne_2D_class{cls}.png", dpi=fig.dpi
             )
             plt.close(fig)
+
+            # ----------------- COMPUTE DELTAS -------------------------------------------
+            # breakpoint()
+            for folder1 in folders:
+                for folder2 in folders:
+                    if folder1 != folder2:
+                        delta = wass_mtxs[folder1] - wass_mtxs[folder2]
+                        # breakpoint()
+                        # Plot the heatmap
+                        plt.figure(figsize=(10, 8))
+                        plt.imshow(delta, cmap="PiYG", interpolation="nearest")
+                        plt.colorbar(label="Wasserstein Distance")
+                        plt.title(
+                            f"WD Delta Between classes in {folder1} and {folder2} exp {cls}"
+                        )
+                        plt.xlabel("Class")
+                        plt.ylabel("Class")
+                        plt.xticks(np.arange(len(plot_classes)), labels=plot_classes)
+                        plt.yticks(np.arange(len(plot_classes)), labels=plot_classes)
+                        plt.show()
