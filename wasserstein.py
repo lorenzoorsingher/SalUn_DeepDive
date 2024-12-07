@@ -119,6 +119,7 @@ if __name__ == "__main__":
                         # breakpoint()
                         # Plot the heatmap
                         plt.figure(figsize=(10, 8))
+                        plt.tight_layout()
                         fig = plt.figure()
                         plt.imshow(delta, cmap="PiYG", interpolation="nearest")
                         plt.colorbar(label="Wasserstein Distance")
@@ -130,4 +131,4 @@ if __name__ == "__main__":
                         plt.xticks(np.arange(len(plot_classes)), labels=plot_classes)
                         plt.yticks(np.arange(len(plot_classes)), labels=plot_classes)
                         # plt.show()
-                        plt.savefig("images/delta.png", dpi=fig.dpi)
+                        plt.savefig(f"images/delta_{folder1}_{folder2}_class{cls}.png", dpi=fig.dpi)
