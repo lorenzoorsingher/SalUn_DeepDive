@@ -131,7 +131,7 @@ if __name__ == "__main__":
         "yellow",
     ]
 
-    folders = ["features/retrained", "features/salun_per_class"]
+    folders = ["features/retrained", "features/salun_per_class", "features/base"]
 
     files = {
         folder: {int(n.split(".")[0].split("_")[-1]): n for n in os.listdir(folder)}
@@ -139,6 +139,8 @@ if __name__ == "__main__":
     }
 
     for cls, _ in enumerate(plot_classes):
+
+        print(f"Current experiment: unlearned class {cls}")
 
         # -------------- DATA LOADING -----------------------------------
         all_features = {}
@@ -182,7 +184,7 @@ if __name__ == "__main__":
             plt.figure(figsize=(10, 8))
             plt.imshow(wass_dist, cmap="viridis", interpolation="nearest")
             plt.colorbar(label="Wasserstein Distance")
-            plt.title(f"Wasserstein Distances Between CIFAR-10 Classes in {folder}")
+            plt.title(f"Wasserstein Distances Between Classes in {folder} exp {cls}")
             plt.xlabel("Class")
             plt.ylabel("Class")
             plt.xticks(np.arange(len(plot_classes)), labels=plot_classes)
@@ -190,114 +192,23 @@ if __name__ == "__main__":
             plt.show()
 
         # ----------------- COMPUTE DELTAS -------------------------------------------
-        breakpoint()
-    # breakpoint()
-    # wasserstein_distances = {}
-    # for class1 in all_class_features:
-    #     for class2 in all_class_features:
-    #         if class1 < class2:
-    #             distance = wasserstein_distance_nd(
-    #                 all_class_features[class1], all_class_features[class2]
-    #             )
-    #             wasserstein_distances[(class1, class2)] = distance
+        # breakpoint()
 
-    # num_classes = len(plot_classes)
-    # distance_matrix = np.zeros((num_classes, num_classes))
-    # for (class1, class2), distance in wasserstein_distances.items():
-    #     if class1 < class2:
-    #         distance_matrix[class1, class2] = distance
+        for folder1 in folders:
+            for folder2 in folders:
+                if folder1 != folder2:
+                    delta = wass_mtxs[folder1] - wass_mtxs[folder2]
 
-    # # Plot the heatmap
-    # plt.figure(figsize=(10, 8))
-    # plt.imshow(distance_matrix, cmap="viridis", interpolation="nearest")
-    # plt.colorbar(label="Wasserstein Distance")
-    # plt.title(
-    #     f"Wasserstein Distances Between CIFAR-10 Class Centroids exp {experiment}"
-    # )
-    # plt.xlabel("Class")
-    # plt.ylabel("Class")
-    # plt.xticks(np.arange(num_classes), labels=plot_classes)
-    # plt.yticks(np.arange(num_classes), labels=plot_classes)
-
-    # # Add annotations for each cell
-    # for i in range(num_classes):
-    #     for j in range(num_classes):
-    #         if i < j:
-    #             plt.text(
-    #                 j,
-    #                 i,
-    #                 f"{distance_matrix[i, j]:.2f}",
-    #                 ha="center",
-    #                 va="center",
-    #                 color="white",
-    #                 fontsize=8,
-    #             )
-
-    # plt.tight_layout()
-    # plt.savefig(f"images/{experiment}/cmat.png", dpi=300, bbox_inches="tight")
-
-    # # TSNE for 3D Visualization
-    # tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
-    # tsne_features_3d = tsne_3d.fit_transform(all_features)
-
-    # # Plot in 3D
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection="3d")
-    # scatter = ax.scatter(
-    #     tsne_features_3d[:, 0],
-    #     tsne_features_3d[:, 1],
-    #     tsne_features_3d[:, 2],
-    #     c=[plot_colors[label] for label in all_labels],
-    # )
-
-    # legend1 = ax.legend(
-    #     [
-    #         plt.Line2D([0], [0], marker="o", color=color, linestyle="")
-    #         for color in plot_colors
-    #     ],
-    #     plot_classes,
-    #     loc="right",
-    # )
-    # ax.add_artist(legend1)
-    # plt.title(f"Class visualization with T-SNE (3D) exp {experiment}")
-
-    # # Save 3D visualization
-    # plt.savefig(f"images/{experiment}/latent_space_tsne_3D.png")
-
-    # # Optional: Animate 3D visualization
-    # angles = np.linspace(0, 360, 100)[:-1]
-    # rotanimate(
-    #     ax,
-    #     angles,
-    #     f"images/{experiment}/latent_space_tsne_3D.gif",
-    #     delay=100,
-    #     width=7,
-    #     height=6,
-    # )
-
-    # # TSNE for 2D Visualization
-    # tsne_2d = TSNE(n_components=2, random_state=42, perplexity=30, n_iter=1000)
-    # tsne_features_2d = tsne_2d.fit_transform(all_features)
-
-    # # Plot in 2D
-    # plt.figure(figsize=(8, 6))
-    # scatter = plt.scatter(
-    #     tsne_features_2d[:, 0],
-    #     tsne_features_2d[:, 1],
-    #     c=[plot_colors[label] for label in all_labels],
-    # )
-    # legend1 = plt.legend(
-    #     [
-    #         plt.Line2D([0], [0], marker="o", color=color, linestyle="")
-    #         for color in plot_colors
-    #     ],
-    #     plot_classes,
-    #     loc="right",
-    # )
-    # plt.gca().add_artist(legend1)
-    # plt.title(f"Latent Space Visualization with T-SNE (2D) {experiment}")
-    # plt.xlabel("T-SNE Component 1")
-    # plt.ylabel("T-SNE Component 2")
-
-    # # Save 2D visualization
-    # plt.savefig(f"images/{experiment}/latent_space_tsne_2D.png")
+                    # breakpoint()
+                    # Plot the heatmap
+                    plt.figure(figsize=(10, 8))
+                    plt.imshow(delta, cmap="PiYG", interpolation="nearest")
+                    plt.colorbar(label="Wasserstein Distance")
+                    plt.title(
+                        f"WD Delta Between classes in {folder1} and {folder2} exp {cls}"
+                    )
+                    plt.xlabel("Class")
+                    plt.ylabel("Class")
+                    plt.xticks(np.arange(len(plot_classes)), labels=plot_classes)
+                    plt.yticks(np.arange(len(plot_classes)), labels=plot_classes)
+                    plt.show()
