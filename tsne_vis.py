@@ -2,17 +2,11 @@ import argparse
 import json
 import os
 
-import torch
-from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 
 import numpy as np
-from scipy.stats import wasserstein_distance, wasserstein_distance_nd
-from scipy.spatial.distance import euclidean
-from tqdm import tqdm
-from datasets import UnlearnCifar10, UnlearnCifar100, UnlearnSVNH, get_dataloaders
-from utils import load_checkpoint
+from scipy.stats import wasserstein_distance_nd
 from PIL import Image
 
 
@@ -165,9 +159,6 @@ if __name__ == "__main__":
                 [[i] * len(f) for i, f in all_features[folder].items()]
             )
 
-        # ----------------- WASSERSTEIN DISTANCE ---------------------------
-        print("Computing Wasserstein Distance")
-
         # ------------------ TSNE for 3D Visualization ---------------------
         tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
         tsne_features_3d = np.split(
@@ -182,37 +173,9 @@ if __name__ == "__main__":
             len(pre_tsne_feat),
         )
 
-        wass_mtxs = {}
         for i, folder in enumerate(folders):
-
-            wass_dist = np.zeros((len(plot_classes), len(plot_classes)))
-
-            wass_dist[:] = np.nan
             class_separated = all_features[folder]
-
-            for idx1, _ in enumerate(plot_classes):
-                for idx2, _ in enumerate(plot_classes):
-
-                    if idx1 < idx2:
-                        distance = wasserstein_distance_nd(
-                            class_separated[idx1], class_separated[idx2]
-                        )
-                        wass_dist[idx1, idx2] = distance
-
-            wass_mtxs[folder] = wass_dist
             os.makedirs(f"images/{folder}", exist_ok=True)
-
-            # Plot the heatmap
-            plt.figure(figsize=(10, 8))
-            plt.imshow(wass_dist, cmap="viridis", interpolation="nearest")
-            plt.colorbar(label="Wasserstein Distance")
-            plt.title(f"Wasserstein Distances Between Classes in {folder} exp {cls}")
-            plt.xlabel("Class")
-            plt.ylabel("Class")
-            plt.xticks(np.arange(len(plot_classes)), labels=plot_classes)
-            plt.yticks(np.arange(len(plot_classes)), labels=plot_classes)
-            plt.show()
-
             # ----------------- TSNE plots creation -------------------
             # Plot in 3D
             fig = plt.figure(figsize=(8, 6))
@@ -281,23 +244,5 @@ if __name__ == "__main__":
                 f"images/{folder}/latent_space_tsne_2D_class{cls}.png", dpi=fig.dpi
             )
             plt.close(fig)
-
-            # ----------------- COMPUTE DELTAS -------------------------------------------
-            # breakpoint()
-            for folder1 in folders:
-                for folder2 in folders:
-                    if folder1 != folder2:
-                        delta = wass_mtxs[folder1] - wass_mtxs[folder2]
-                        # breakpoint()
-                        # Plot the heatmap
-                        plt.figure(figsize=(10, 8))
-                        plt.imshow(delta, cmap="PiYG", interpolation="nearest")
-                        plt.colorbar(label="Wasserstein Distance")
-                        plt.title(
-                            f"WD Delta Between classes in {folder1} and {folder2} exp {cls}"
-                        )
-                        plt.xlabel("Class")
-                        plt.ylabel("Class")
-                        plt.xticks(np.arange(len(plot_classes)), labels=plot_classes)
-                        plt.yticks(np.arange(len(plot_classes)), labels=plot_classes)
-                        plt.show()
+            print(f"Saved images for class {cls} in experiment {folder}")
+    print("Done")
