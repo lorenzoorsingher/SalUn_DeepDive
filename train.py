@@ -81,6 +81,7 @@ def get_args():
     parser.add_argument("--dataset", type=str, default="cifar10")
     parser.add_argument("--comment", type=str, default="pretrained")
     parser.add_argument("--lr", type=float, default=0.1)
+    parser.add_argument("--pat", type=int, default=10)
 
     # Set this to 0 to train on all data
     parser.add_argument("--unlr", type=float, default=None)  # unlearning ratio.
@@ -109,7 +110,7 @@ if __name__ == "__main__":
     ITF = args.itf
     CF = args.cf
 
-    PAT = 10
+    PAT = args.pat
     EPOCHS = 200
     LR = args.lr
 
@@ -164,9 +165,11 @@ if __name__ == "__main__":
         loss = train_loop(model, retain_loader, criterion, optimizer, DEVICE)
 
         val_loss, val_top1, val_top5 = test_loop(model, val_loader, criterion, DEVICE)
-        for_loss, for_top1, for_top5 = test_loop(
-            model, forget_loader, criterion, DEVICE
-        )
+
+        if len(forget_loader) > 0:
+            for_loss, for_top1, for_top5 = test_loop(
+                model, forget_loader, criterion, DEVICE
+            )
 
         scheduler.step(val_top1)
 
@@ -175,9 +178,10 @@ if __name__ == "__main__":
         print(
             f"Epoch: {epoch}, Loss: {round(loss,3)}, Val Loss: {round(val_loss,3)}, Val Top1: {round(val_top1,3)} Val Top5: {round(val_top5,3)} PAT: {pat}"
         )
-        print(
-            f"Epoch: {epoch}, Loss: {round(loss,3)}, For Loss: {round(for_loss,3)}, For Top1: {round(for_top1,3)} For Top5: {round(for_top5,3)} PAT: {pat}"
-        )
+        if len(forget_loader) > 0:
+            print(
+                f"Epoch: {epoch}, Loss: {round(loss,3)}, For Loss: {round(for_loss,3)}, For Top1: {round(for_top1,3)} For Top5: {round(for_top5,3)} PAT: {pat}"
+            )
 
         if val_top1 > best_acc:
             best_acc = val_top1
