@@ -152,24 +152,28 @@ if __name__ == "__main__":
                 class_separated[idx] = features[labels == idx]
             all_features[folder] = class_separated
             # ----------------- TSNE data preparation ----------------------
-            pre_tsne_feat[folder] = np.concat(
+            pre_tsne_feat[folder] = np.concatenate(
                 [feat for _, feat in all_features[folder].items()]
             )
-            all_labels_tsne[folder] = np.concat(
+            all_labels_tsne[folder] = np.concatenate(
                 [[i] * len(f) for i, f in all_features[folder].items()]
             )
 
         # ------------------ TSNE for 3D Visualization ---------------------
         tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
         tsne_features_3d = np.split(
-            tsne_3d.fit_transform(np.concat([p for _, p in pre_tsne_feat.items()])),
+            tsne_3d.fit_transform(
+                np.concatenate([p for _, p in pre_tsne_feat.items()])
+            ),
             len(pre_tsne_feat),
         )
 
         # ------------------ TSNE for 2D Visualization ---------------------
         tsne_2d = TSNE(n_components=2, random_state=42, perplexity=30, n_iter=1000)
         tsne_features_2d = np.split(
-            tsne_2d.fit_transform(np.concat([p for _, p in pre_tsne_feat.items()])),
+            tsne_2d.fit_transform(
+                np.concatenate([p for _, p in pre_tsne_feat.items()])
+            ),
             len(pre_tsne_feat),
         )
 
