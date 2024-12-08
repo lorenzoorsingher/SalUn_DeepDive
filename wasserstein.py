@@ -78,7 +78,7 @@ if __name__ == "__main__":
 
         wass_mtxs = {}
         for i, folder in enumerate(folders):
-
+            print(f"Computing Wasserstein Distance for {folder}")
             wass_dist = np.zeros((len(plot_classes), len(plot_classes)))
 
             wass_dist[:] = np.nan
@@ -100,8 +100,12 @@ if __name__ == "__main__":
             os.makedirs(f"images/{folder}", exist_ok=True)
 
             # Plot the heatmap
+            vmin = 2.5
+            vmax = 7.5
             plt.figure(figsize=(10, 8))
-            plt.imshow(wass_dist, cmap="viridis", interpolation="nearest")
+            plt.imshow(
+                wass_dist, cmap="viridis", interpolation="nearest", vmin=vmin, vmax=vmax
+            )
             plt.colorbar(label="Wasserstein Distance")
             plt.title(f"Wasserstein Distances Between Classes in {folder} exp {cls}")
             plt.xlabel("Class")
@@ -110,28 +114,36 @@ if __name__ == "__main__":
             plt.yticks(np.arange(len(plot_classes)), labels=plot_classes)
             plt.show()
 
-            # ----------------- COMPUTE DELTAS -------------------------------------------
-            # breakpoint()
-            for folder1 in folders:
-                for folder2 in folders:
-                    if folder1 != folder2:
-                        delta = wass_mtxs[folder1] - wass_mtxs[folder2]
-                        # breakpoint()
-                        # Plot the heatmap
-                        plt.figure(figsize=(10, 8))
-                        plt.tight_layout()
-                        fig = plt.figure()
-                        plt.imshow(delta, cmap="PiYG", interpolation="nearest")
-                        plt.colorbar(label="Wasserstein Distance")
-                        plt.title(
-                            f"WD Delta Between classes in {folder1} and {folder2} exp {cls}"
-                        )
-                        plt.xlabel("Class")
-                        plt.ylabel("Class")
-                        plt.xticks(np.arange(len(plot_classes)), labels=plot_classes)
-                        plt.yticks(np.arange(len(plot_classes)), labels=plot_classes)
-                        # plt.show()
-                        plt.savefig(
-                            f"images/delta_{folder1}_{folder2}_class{cls}.png",
-                            dpi=fig.dpi,
-                        )
+        # ----------------- COMPUTE DELTAS -------------------------------------------
+        # breakpoint()
+        for folder1 in folders:
+            for folder2 in folders:
+                if folder1 != folder2:
+                    delta = wass_mtxs[folder2] - wass_mtxs[folder1]
+                    # breakpoint()
+                    # Plot the heatmap
+                    vmin = -2
+                    vmax = 2
+                    plt.figure(figsize=(10, 8))
+                    plt.tight_layout()
+                    # fig = plt.figure()
+                    plt.imshow(
+                        delta,
+                        cmap="PiYG_r",
+                        interpolation="nearest",
+                        vmin=vmin,
+                        vmax=vmax,
+                    )
+                    plt.colorbar(label="Distance Delta")
+                    plt.title(
+                        f"WD Delta Between classes in {folder1} and {folder2} exp {cls}"
+                    )
+                    plt.xlabel("Class")
+                    plt.ylabel("Class")
+                    plt.xticks(np.arange(len(plot_classes)), labels=plot_classes)
+                    plt.yticks(np.arange(len(plot_classes)), labels=plot_classes)
+                    plt.show()
+                    # plt.savefig(
+                    #     f"images/delta_{folder1}_{folder2}_class{cls}.png",
+                    #     dpi=fig.dpi,
+                    # )
