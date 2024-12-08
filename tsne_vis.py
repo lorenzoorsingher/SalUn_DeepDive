@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 from PIL import Image
+from copy import copy
 
 
 def make_views(
@@ -85,6 +86,10 @@ def rotanimate(ax, angles, output, **kwargs):
         os.remove(f)
 
 
+def cossim(a, b):
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Visualize")
@@ -126,9 +131,9 @@ if __name__ == "__main__":
 
     folders = [
         "features/reduced/base",
-        # "features/reduced/salun_per_class",
-        "features/reduced/ga",
         # "features/reduced/retrained",
+        # "features/reduced/ga",
+        "features/reduced/salun_per_class",
     ]
 
     files = {
@@ -145,7 +150,9 @@ if __name__ == "__main__":
         all_labels_tsne = {}
         pre_tsne_feat = {}
 
-        protos = np.empty((len(folders), 512))
+        protos = np.zeros((len(folders), 512))
+
+        # protos2 = np.zeros((1, 512))
         for proto_idx, folder in enumerate(folders):
 
             data = json.load(open(os.path.join(folder, files[folder][cls])))
@@ -164,22 +171,32 @@ if __name__ == "__main__":
             all_labels_tsne[folder] = np.concatenate(
                 [[i] * len(f) for i, f in all_features[folder].items()]
             )
+            # protos[proto_idx] = copy(proto[cls])
             # breakpoint()
-            protos[proto_idx] = proto[cls]
-
-        pre_tsne_feat[folder] = np.concatenate([pre_tsne_feat[folder], protos])
+            pre_tsne_feat[folder] = np.concatenate(
+                [pre_tsne_feat[folder], np.expand_dims(proto[cls], axis=0)]
+            )
+            # protos2 = np.concatenate([protos2, np.expand_dims(proto[cls], axis=0)])
+            # np.linalg.norm(class_separated[cls].mean(axis=0) - proto[cls], ord=1)
+            # dat = json.load(open("features/reduced/base/resnet18_cifar10_SGD_best_0.json"))
+            # protos[0] - dat["proto"][0]
+            # breakpoint()
+        # pre_tsne_feat[folder] = np.concatenate([pre_tsne_feat[folder], protos])
+        # breakpoint()
         # breakpoint()
 
         # ------------------ TSNE for 3D Visualization ---------------------
-        tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
+        tsne_3d = TSNE(
+            n_components=3, random_state=42, perplexity=30, n_iter=1000, metric="cosine"
+        )
 
         tsne_features_3d = tsne_3d.fit_transform(
             np.concatenate([p for _, p in pre_tsne_feat.items()])
         )
-
         # breakpoint()
-        proto3d = tsne_features_3d[-len(folders) :]
-        tsne_features_3d = tsne_features_3d[: -len(folders)]
+
+        # proto3d = tsne_features_3d[-len(folders) :]
+        # tsne_features_3d = tsne_features_3d[: -len(folders)]
         tsne_features_3d = np.split(tsne_features_3d, len(pre_tsne_feat))
 
         # ------------------ TSNE for 2D Visualization ---------------------
@@ -187,8 +204,8 @@ if __name__ == "__main__":
         tsne_features_2d = tsne_2d.fit_transform(
             np.concatenate([p for _, p in pre_tsne_feat.items()])
         )
-        proto2d = tsne_features_2d[-len(folders) :]
-        tsne_features_2d = tsne_features_2d[: -len(folders)]
+        # proto2d = tsne_features_2d[-len(folders) :]
+        # tsne_features_2d = tsne_features_2d[: -len(folders)]
 
         tsne_features_2d = np.split(tsne_features_2d, len(pre_tsne_feat))
 
@@ -203,22 +220,22 @@ if __name__ == "__main__":
             fig = plt.figure(figsize=(8, 6))
             ax = fig.add_subplot(111, projection="3d")
             scatter = ax.scatter(
-                tsne_features_3d[i][:, 0],
-                tsne_features_3d[i][:, 1],
-                tsne_features_3d[i][:, 2],
+                tsne_features_3d[i][:-1, 0],
+                tsne_features_3d[i][:-1, 1],
+                tsne_features_3d[i][:-1, 2],
                 c=[plot_colors[label] for label in all_labels_tsne[folder]],
                 s=1,
             )
 
-            # proto_scatter = ax.scatter(
-            #     proto3d[:][0],
-            #     proto3d[:][1],
-            #     proto3d[:][2],
-            #     c="magenta",
-            #     s=100,
-            #     marker="x",
-            #     linewidths=3,
-            # )
+            proto_scatter = ax.scatter(
+                tsne_features_3d[i][-1, 0],
+                tsne_features_3d[i][-1, 1],
+                tsne_features_3d[i][-1, 2],
+                c="magenta",
+                s=100,
+                marker="x",
+                linewidths=3,
+            )
 
             # breakpoint()
 
@@ -231,13 +248,8 @@ if __name__ == "__main__":
                 loc="center left",
                 bbox_to_anchor=(1.05, 0.5),
             )
-            ax.add_artist(legend1)
-            plt.title(f"{folder.replace('features/','')} latent space")
-            fig.tight_layout()
-            # plt.show()
-            # Save 3D visualization
-            plt.savefig(f"images/{folder}/tsne_3D/class{cls}.png", dpi=fig.dpi)
-
+            ax.add_artist(legend1)  # plt.xlim([-25, 25])
+            # plt.ylim([-25, 25])
             # Optional: Animate 3D visualization
             angles = np.linspace(0, 360, 100)[:-1]
             rotanimate(
@@ -254,16 +266,18 @@ if __name__ == "__main__":
             plt.figure(figsize=(8, 6))
             fig = plt.figure()
             scatter = plt.scatter(
-                tsne_features_2d[i][:, 0],
-                tsne_features_2d[i][:, 1],
+                tsne_features_2d[i][:-1, 0],
+                tsne_features_2d[i][:-1, 1],
                 c=[plot_colors[label] for label in all_labels_tsne[folder]],
                 s=1,
             )
-
+            # Set the limits for both axes
+            # plt.xlim([-25, 25])
+            # plt.ylim([-25, 25])
             # breakpoint()
             proto_scatter = plt.scatter(
-                proto2d[:, 0],
-                proto2d[:, 1],
+                tsne_features_2d[i][-1, 0],
+                tsne_features_2d[i][-1, 1],
                 c="magenta",
                 s=100,
                 marker="x",
