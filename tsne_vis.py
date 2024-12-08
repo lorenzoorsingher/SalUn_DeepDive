@@ -203,7 +203,7 @@ if __name__ == "__main__":
                 bbox_to_anchor=(1.05, 0.5),
             )
             ax.add_artist(legend1)
-            plt.title(f"Latent Space {folder}_unlearned class{cls}")
+            plt.title(f"Latent Space {folder.replace('features/','')}-Unlearned class {cls}")
             fig.tight_layout()
             # plt.show()
             # Save 3D visualization
@@ -239,7 +239,7 @@ if __name__ == "__main__":
                 loc="center left",
                 bbox_to_anchor=(1.05, 0.5),
             )
-            plt.title(f"Latent Space {folder}_unlearned{cls}")
+            plt.title(f"Latent Space {folder.replace('features/','')}-Unlearned class {cls}")
             fig.tight_layout()
             # plt.show()
             plt.savefig(f"images/{folder}/tsne_2D/class{cls}.png", dpi=fig.dpi)
