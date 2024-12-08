@@ -1,0 +1,18 @@
+[
+  {
+    "class_to_forget": 0,
+    "checkpoint": "checkpoints/resnet18_cifar100_pretrained.pt",
+    "use_mask": true,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "rl_split"
+  },
+  {
+    "class_to_forget": 0,
+    "checkpoint": "checkpoints/resnet18_cifar100_pretrained.pt",
+    "use_mask": true,
+    "lr": 0.0005,
+    "epochs": 10,
+    "method": "ga"
+  }
+]
