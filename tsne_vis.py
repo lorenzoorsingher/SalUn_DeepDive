@@ -124,7 +124,12 @@ if __name__ == "__main__":
         "yellow",
     ]
 
-    folders = ["features/retrained", "features/salun_per_class"]
+    folders = [
+        "features/reduced/base",
+        # "features/reduced/salun_per_class",
+        "features/reduced/ga",
+        # "features/reduced/retrained",
+    ]
 
     files = {
         folder: {int(n.split(".")[0].split("_")[-1]): n for n in os.listdir(folder)}
@@ -139,13 +144,15 @@ if __name__ == "__main__":
         all_features = {}
         all_labels_tsne = {}
         pre_tsne_feat = {}
-        for folder in folders:
+
+        protos = np.empty((len(folders), 512))
+        for proto_idx, folder in enumerate(folders):
 
             data = json.load(open(os.path.join(folder, files[folder][cls])))
 
             features = np.array(data["all_features"][:SAMPLES])
             labels = np.array(data["all_labels"][:SAMPLES])
-
+            proto = np.array(data["proto"])
             class_separated = {}
             for idx, _ in enumerate(plot_classes):
                 class_separated[idx] = features[labels == idx]
@@ -157,25 +164,35 @@ if __name__ == "__main__":
             all_labels_tsne[folder] = np.concatenate(
                 [[i] * len(f) for i, f in all_features[folder].items()]
             )
+            # breakpoint()
+            protos[proto_idx] = proto[cls]
+
+        pre_tsne_feat[folder] = np.concatenate([pre_tsne_feat[folder], protos])
+        # breakpoint()
 
         # ------------------ TSNE for 3D Visualization ---------------------
         tsne_3d = TSNE(n_components=3, random_state=42, perplexity=30, n_iter=1000)
-        tsne_features_3d = np.split(
-            tsne_3d.fit_transform(
-                np.concatenate([p for _, p in pre_tsne_feat.items()])
-            ),
-            len(pre_tsne_feat),
+
+        tsne_features_3d = tsne_3d.fit_transform(
+            np.concatenate([p for _, p in pre_tsne_feat.items()])
         )
+
+        # breakpoint()
+        proto3d = tsne_features_3d[-len(folders) :]
+        tsne_features_3d = tsne_features_3d[: -len(folders)]
+        tsne_features_3d = np.split(tsne_features_3d, len(pre_tsne_feat))
 
         # ------------------ TSNE for 2D Visualization ---------------------
         tsne_2d = TSNE(n_components=2, random_state=42, perplexity=30, n_iter=1000)
-        tsne_features_2d = np.split(
-            tsne_2d.fit_transform(
-                np.concatenate([p for _, p in pre_tsne_feat.items()])
-            ),
-            len(pre_tsne_feat),
+        tsne_features_2d = tsne_2d.fit_transform(
+            np.concatenate([p for _, p in pre_tsne_feat.items()])
         )
+        proto2d = tsne_features_2d[-len(folders) :]
+        tsne_features_2d = tsne_features_2d[: -len(folders)]
 
+        tsne_features_2d = np.split(tsne_features_2d, len(pre_tsne_feat))
+
+        # breakpoint()
         for i, folder in enumerate(folders):
             class_separated = all_features[folder]
             os.makedirs(f"images/{folder}/tsne_3D/", exist_ok=True)
@@ -193,6 +210,18 @@ if __name__ == "__main__":
                 s=1,
             )
 
+            # proto_scatter = ax.scatter(
+            #     proto3d[:][0],
+            #     proto3d[:][1],
+            #     proto3d[:][2],
+            #     c="magenta",
+            #     s=100,
+            #     marker="x",
+            #     linewidths=3,
+            # )
+
+            # breakpoint()
+
             legend1 = ax.legend(
                 [
                     plt.Line2D([0], [0], marker="o", color=color, linestyle="")
@@ -203,7 +232,7 @@ if __name__ == "__main__":
                 bbox_to_anchor=(1.05, 0.5),
             )
             ax.add_artist(legend1)
-            plt.title(f"Latent Space {folder.replace('features/','')}-Unlearned class {cls}")
+            plt.title(f"{folder.replace('features/','')} latent space")
             fig.tight_layout()
             # plt.show()
             # Save 3D visualization
@@ -230,6 +259,16 @@ if __name__ == "__main__":
                 c=[plot_colors[label] for label in all_labels_tsne[folder]],
                 s=1,
             )
+
+            # breakpoint()
+            proto_scatter = plt.scatter(
+                proto2d[:, 0],
+                proto2d[:, 1],
+                c="magenta",
+                s=100,
+                marker="x",
+                linewidths=3,
+            )
             plt.legend(
                 [
                     plt.Line2D([0], [0], marker="o", color=color, linestyle="")
@@ -239,7 +278,7 @@ if __name__ == "__main__":
                 loc="center left",
                 bbox_to_anchor=(1.05, 0.5),
             )
-            plt.title(f"Latent Space {folder.replace('features/','')}-Unlearned class {cls}")
+            plt.title(f"{folder.replace('features/','')} latent space")
             fig.tight_layout()
             # plt.show()
             plt.savefig(f"images/{folder}/tsne_2D/class{cls}.png", dpi=fig.dpi)

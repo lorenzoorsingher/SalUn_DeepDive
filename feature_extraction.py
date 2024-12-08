@@ -103,7 +103,6 @@ if __name__ == "__main__":
 
         all_features = torch.cat(all_features).numpy()
         all_labels = torch.cat(all_labels).numpy()
-
         os.makedirs(f"features/{args.directory}", exist_ok=True)
 
         with open(f"features/{args.directory}/{experiment}.json", "w") as f:
@@ -111,6 +110,7 @@ if __name__ == "__main__":
                 {
                     "all_features": all_features.tolist(),
                     "all_labels": all_labels.tolist(),
+                    "proto": model.fc.weight.data.tolist(),
                 },
                 f,
             )
