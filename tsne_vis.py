@@ -6,7 +6,6 @@ from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 
 import numpy as np
-from scipy.stats import wasserstein_distance_nd
 from PIL import Image
 
 
@@ -125,7 +124,7 @@ if __name__ == "__main__":
         "yellow",
     ]
 
-    folders = ["features/retrained", "features/salun_per_class", "features/base"]
+    folders = ["features/retrained", "features/salun_per_class"]
 
     files = {
         folder: {int(n.split(".")[0].split("_")[-1]): n for n in os.listdir(folder)}
@@ -179,7 +178,9 @@ if __name__ == "__main__":
 
         for i, folder in enumerate(folders):
             class_separated = all_features[folder]
-            os.makedirs(f"images/{folder}", exist_ok=True)
+            os.makedirs(f"images/{folder}/tsne_3D/", exist_ok=True)
+            os.makedirs(f"images/{folder}/tsne_2D/", exist_ok=True)
+            os.makedirs(f"images/{folder}/tsne_animated/", exist_ok=True)
             # ----------------- TSNE plots creation -------------------
             # Plot in 3D
             fig = plt.figure(figsize=(8, 6))
@@ -189,6 +190,7 @@ if __name__ == "__main__":
                 tsne_features_3d[i][:, 1],
                 tsne_features_3d[i][:, 2],
                 c=[plot_colors[label] for label in all_labels_tsne[folder]],
+                s=1,
             )
 
             legend1 = ax.legend(
@@ -201,20 +203,18 @@ if __name__ == "__main__":
                 bbox_to_anchor=(1.05, 0.5),
             )
             ax.add_artist(legend1)
-            plt.title(f"Class visualization with T-SNE (3D) exp {folder}_class{cls}")
+            plt.title(f"Latent Space {folder}_unlearned class{cls}")
             fig.tight_layout()
             # plt.show()
             # Save 3D visualization
-            plt.savefig(
-                f"images/{folder}/latent_space_tsne_3D_class{cls}.png", dpi=fig.dpi
-            )
+            plt.savefig(f"images/{folder}/tsne_3D/class{cls}.png", dpi=fig.dpi)
 
             # Optional: Animate 3D visualization
             angles = np.linspace(0, 360, 100)[:-1]
             rotanimate(
                 ax,
                 angles,
-                f"images/{folder}/latent_space_tsne_3D_class{cls}.gif",
+                f"images/{folder}/tsne_animated/class{cls}.gif",
                 delay=100,
                 width=8,
                 height=6,
@@ -228,6 +228,7 @@ if __name__ == "__main__":
                 tsne_features_2d[i][:, 0],
                 tsne_features_2d[i][:, 1],
                 c=[plot_colors[label] for label in all_labels_tsne[folder]],
+                s=1,
             )
             plt.legend(
                 [
@@ -238,15 +239,10 @@ if __name__ == "__main__":
                 loc="center left",
                 bbox_to_anchor=(1.05, 0.5),
             )
-            plt.title(f"Latent Space Visualization with T-SNE (2D) {folder}_class{cls}")
-            plt.xlabel("T-SNE Component 1")
-            plt.ylabel("T-SNE Component 2")
+            plt.title(f"Latent Space {folder}_unlearned{cls}")
             fig.tight_layout()
             # plt.show()
-            # Save 2D visualization
-            plt.savefig(
-                f"images/{folder}/latent_space_tsne_2D_class{cls}.png", dpi=fig.dpi
-            )
+            plt.savefig(f"images/{folder}/tsne_2D/class{cls}.png", dpi=fig.dpi)
             plt.close(fig)
             print(f"Saved images for class {cls} in experiment {folder}")
     print("Done")
