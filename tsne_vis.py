@@ -131,8 +131,8 @@ if __name__ == "__main__":
 
     folders = [
         "features/reduced/base",
-        # "features/reduced/retrained",
-        # "features/reduced/ga",
+        "features/reduced/retrained",
+        "features/reduced/ga",
         "features/reduced/salun_per_class",
     ]
 
@@ -200,10 +200,24 @@ if __name__ == "__main__":
         tsne_features_3d = np.split(tsne_features_3d, len(pre_tsne_feat))
 
         # ------------------ TSNE for 2D Visualization ---------------------
-        tsne_2d = TSNE(n_components=2, random_state=42, perplexity=30, n_iter=1000)
+        tsne_2d = TSNE(
+            n_components=2,
+            random_state=234,
+            perplexity=50,
+            n_jobs=-1,
+            n_iter=1000,
+            metric="cosine",
+        )
+
+        # transf = tsne_2d.fit(pre_tsne_feat[folders[0]])
+
         tsne_features_2d = tsne_2d.fit_transform(
             np.concatenate([p for _, p in pre_tsne_feat.items()])
         )
+
+        # tsne_features_2d = transf._fit(
+        #     np.concatenate([p for _, p in pre_tsne_feat.items()])
+        # )
         # proto2d = tsne_features_2d[-len(folders) :]
         # tsne_features_2d = tsne_features_2d[: -len(folders)]
 
@@ -248,8 +262,9 @@ if __name__ == "__main__":
                 loc="center left",
                 bbox_to_anchor=(1.05, 0.5),
             )
-            ax.add_artist(legend1)  # plt.xlim([-25, 25])
-            # plt.ylim([-25, 25])
+            ax.add_artist(legend1)
+            plt.xlim([-40, 40])
+            plt.ylim([-40, 40])
             # Optional: Animate 3D visualization
             angles = np.linspace(0, 360, 100)[:-1]
             rotanimate(
@@ -272,8 +287,8 @@ if __name__ == "__main__":
                 s=1,
             )
             # Set the limits for both axes
-            # plt.xlim([-25, 25])
-            # plt.ylim([-25, 25])
+            plt.xlim([-45, 45])
+            plt.ylim([-45, 45])
             # breakpoint()
             proto_scatter = plt.scatter(
                 tsne_features_2d[i][-1, 0],

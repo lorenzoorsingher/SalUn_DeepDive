@@ -1,0 +1,66 @@
+[
+  {
+    "class_to_forget": 0,
+    "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
+    "use_mask": true,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "rl"
+  },
+  {
+    "class_to_forget": 1,
+    "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
+    "use_mask": true,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "rl"
+  },
+  {
+    "class_to_forget": 2,
+    "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
+    "use_mask": true,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "rl"
+  },
+  {
+    "class_to_forget": 3,
+    "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
+    "use_mask": true,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "rl"
+  },
+  {
+    "class_to_forget": 0,
+    "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
+    "use_mask": true,
+    "lr": 0.01,
+    "epochs": 10,
+    "method": "rl"
+  },
+  {
+    "class_to_forget": 1,
+    "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
+    "use_mask": true,
+    "lr": 0.01,
+    "epochs": 10,
+    "method": "rl"
+  },
+  {
+    "class_to_forget": 2,
+    "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
+    "use_mask": true,
+    "lr": 0.01,
+    "epochs": 10,
+    "method": "rl"
+  },
+  {
+    "class_to_forget": 3,
+    "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
+    "use_mask": true,
+    "lr": 0.01,
+    "epochs": 10,
+    "method": "rl"
+  }
+]
