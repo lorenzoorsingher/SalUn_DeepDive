@@ -195,7 +195,7 @@ class UnlearnCifar100(UnlearningDataset):
         )
 
 
-class UnlearnSVNH(UnlearningDataset):
+class UnlearnSVHN(UnlearningDataset):
     def __init__(
         self,
         split=[0.7, 0.2, 0.1],
@@ -214,7 +214,7 @@ class UnlearnSVNH(UnlearningDataset):
 
         self.TRAIN = list(set(TRAIN) - set(self.TEST))
 
-        super(UnlearnSVNH, self).__init__(
+        super(UnlearnSVHN, self).__init__(
             unlearning_ratio=unlearning_ratio,
             split=split,
             transform=transform,
@@ -239,8 +239,8 @@ def get_dataloaders(
         dataclass = UnlearnCifar10
     elif dataname == "cifar100":
         dataclass = UnlearnCifar100
-    elif dataname == "svnh":
-        dataclass = UnlearnSVNH
+    elif dataname == "svhn":
+        dataclass = UnlearnSVHN
 
     if itf is not None:
         with open(itf, "r") as f:
@@ -313,7 +313,7 @@ if __name__ == "__main__":
 
     transform = None
 
-    DSET = "cifar10"
+    DSET = "cifar100"
 
     ITF = None  # "checkpoints/resnet18_cifar10_pretrained_forget.json"
     UNLR = None  # 0.2  # None  # 0.2
@@ -330,7 +330,7 @@ if __name__ == "__main__":
     ds = train_loader.dataset.dataset
 
     # ds.data[10][0].show()
-
+    breakpoint()
     classes = [
         "airplane",
         "automobile",
