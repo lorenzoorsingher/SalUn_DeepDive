@@ -2,65 +2,65 @@
   {
     "class_to_forget": 0,
     "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
-    "use_mask": true,
+    "use_mask": false,
     "lr": 0.1,
     "epochs": 10,
-    "method": "rl"
+    "method": "rl_split"
   },
   {
     "class_to_forget": 1,
     "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
-    "use_mask": true,
+    "use_mask": false,
     "lr": 0.1,
     "epochs": 10,
-    "method": "rl"
+    "method": "rl_split"
   },
   {
     "class_to_forget": 2,
     "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
-    "use_mask": true,
+    "use_mask": false,
     "lr": 0.1,
     "epochs": 10,
-    "method": "rl"
+    "method": "rl_split"
   },
   {
     "class_to_forget": 3,
     "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
-    "use_mask": true,
+    "use_mask": false,
     "lr": 0.1,
     "epochs": 10,
-    "method": "rl"
+    "method": "rl_split"
   },
   {
     "class_to_forget": 0,
     "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
-    "use_mask": true,
+    "use_mask": false,
     "lr": 0.01,
     "epochs": 10,
-    "method": "rl"
+    "method": "rl_split"
   },
   {
     "class_to_forget": 1,
     "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
-    "use_mask": true,
+    "use_mask": false,
     "lr": 0.01,
     "epochs": 10,
-    "method": "rl"
+    "method": "rl_split"
   },
   {
     "class_to_forget": 2,
     "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
-    "use_mask": true,
+    "use_mask": false,
     "lr": 0.01,
     "epochs": 10,
-    "method": "rl"
+    "method": "rl_split"
   },
   {
     "class_to_forget": 3,
     "checkpoint": "checkpoints/resnet18_cifar10_SGD_best.pt",
-    "use_mask": true,
+    "use_mask": false,
     "lr": 0.01,
     "epochs": 10,
-    "method": "rl"
+    "method": "rl_split"
   }
 ]
