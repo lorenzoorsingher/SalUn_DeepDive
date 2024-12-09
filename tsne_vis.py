@@ -129,6 +129,7 @@ if __name__ == "__main__":
         "yellow",
     ]
 
+    PLOT_PROTO = True
     folders = [
         "features/reduced/base",
         "features/reduced/retrained",
@@ -242,15 +243,16 @@ if __name__ == "__main__":
                 s=1,
             )
 
-            proto_scatter = ax.scatter(
-                tsne_features_3d[i][-1, 0],
-                tsne_features_3d[i][-1, 1],
-                tsne_features_3d[i][-1, 2],
-                c="magenta",
-                s=100,
-                marker="x",
-                linewidths=3,
-            )
+            if PLOT_PROTO:
+                proto_scatter = ax.scatter(
+                    tsne_features_3d[i][-1, 0],
+                    tsne_features_3d[i][-1, 1],
+                    tsne_features_3d[i][-1, 2],
+                    c="magenta",
+                    s=100,
+                    marker="x",
+                    linewidths=3,
+                )
 
             # breakpoint()
 
@@ -297,14 +299,15 @@ if __name__ == "__main__":
             # plt.xlim([-45, 45])
             # plt.ylim([-45, 45])
             # breakpoint()
-            proto_scatter = plt.scatter(
-                tsne_features_2d[i][-1, 0],
-                tsne_features_2d[i][-1, 1],
-                c="magenta",
-                s=100,
-                marker="x",
-                linewidths=3,
-            )
+            if PLOT_PROTO:
+                proto_scatter = plt.scatter(
+                    tsne_features_2d[i][-1, 0],
+                    tsne_features_2d[i][-1, 1],
+                    c="magenta",
+                    s=100,
+                    marker="x",
+                    linewidths=3,
+                )
             plt.legend(
                 [
                     plt.Line2D([0], [0], marker="o", color=color, linestyle="")
