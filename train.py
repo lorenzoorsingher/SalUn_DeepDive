@@ -153,12 +153,12 @@ if __name__ == "__main__":
         model.parameters(), lr=LR, momentum=0.9, weight_decay=5e-4
     )
     criterion = torch.nn.CrossEntropyLoss()
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[91, 136], gamma=0.1
-    )
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #     optimizer, mode="max", factor=0.2, patience=5, verbose=True
+    # scheduler = torch.optim.lr_scheduler.MultiStepLR(
+    #     optimizer, milestones=[91, 136], gamma=0.1
     # )
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode="max", factor=0.2, patience=5, verbose=True
+    )
 
     print("Training model")
 

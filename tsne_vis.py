@@ -134,6 +134,7 @@ if __name__ == "__main__":
         "features/reduced/retrained",
         "features/reduced/ga",
         "features/reduced/salun_per_class",
+        "features/reduced/rllow",
     ]
 
     files = {
@@ -263,8 +264,14 @@ if __name__ == "__main__":
                 bbox_to_anchor=(1.05, 0.5),
             )
             ax.add_artist(legend1)
-            plt.xlim([-40, 40])
-            plt.ylim([-40, 40])
+            plt.title(f"{folder.replace('features/','')} latent space")
+            fig.tight_layout()
+            # plt.show()
+            # Save 3D visualization
+            plt.savefig(f"images/{folder}/tsne_3D/class{cls}.png", dpi=fig.dpi)
+
+            # plt.xlim([-40, 40])
+            # plt.ylim([-40, 40])
             # Optional: Animate 3D visualization
             angles = np.linspace(0, 360, 100)[:-1]
             rotanimate(
@@ -287,8 +294,8 @@ if __name__ == "__main__":
                 s=1,
             )
             # Set the limits for both axes
-            plt.xlim([-45, 45])
-            plt.ylim([-45, 45])
+            # plt.xlim([-45, 45])
+            # plt.ylim([-45, 45])
             # breakpoint()
             proto_scatter = plt.scatter(
                 tsne_features_2d[i][-1, 0],
