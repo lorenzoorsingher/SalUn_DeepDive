@@ -1,0 +1,66 @@
+[
+  {
+    "class_to_forget": 0,
+    "checkpoint": "checkpoints/resnet18_svhn_pretrained.pt",
+    "use_mask": true,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "rl_split"
+  },
+  {
+    "class_to_forget": 0,
+    "checkpoint": "checkpoints/resnet18_svhn_pretrained.pt",
+    "use_mask": false,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "rl_split"
+  },
+  {
+    "class_to_forget": 0,
+    "checkpoint": "checkpoints/resnet18_svhn_pretrained.pt",
+    "use_mask": false,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "ga"
+  },
+  {
+    "class_to_forget": 0,
+    "checkpoint": "checkpoints/resnet18_svhn_pretrained.pt",
+    "use_mask": true,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "ga"
+  },
+  {
+    "idxs_to_forget": "checkpoints/resnet18_svhn_RF_forget.json",
+    "checkpoint": "checkpoints/resnet18_svhn_pretrained.pt",
+    "use_mask": true,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "rl_split"
+  },
+  {
+    "idxs_to_forget": "checkpoints/resnet18_svhn_RF_forget.json",
+    "checkpoint": "checkpoints/resnet18_svhn_pretrained.pt",
+    "use_mask": false,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "rl_split"
+  },
+  {
+    "idxs_to_forget": "checkpoints/resnet18_svhn_RF_forget.json",
+    "checkpoint": "checkpoints/resnet18_svhn_pretrained.pt",
+    "use_mask": false,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "ga"
+  },
+  {
+    "idxs_to_forget": "checkpoints/resnet18_svhn_RF_forget.json",
+    "checkpoint": "checkpoints/resnet18_svhn_pretrained.pt",
+    "use_mask": true,
+    "lr": 0.1,
+    "epochs": 10,
+    "method": "ga"
+  }
+]
