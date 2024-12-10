@@ -2,26 +2,11 @@
   {
     "class_to_forget": 0,
     "checkpoint": "checkpoints/resnet18_svhn_pretrained.pt",
-    "use_mask": true,
-    "lr": 0.1,
-    "epochs": 10,
-    "method": "rl_split"
-  },
-  {
-    "class_to_forget": 0,
-    "checkpoint": "checkpoints/resnet18_svhn_pretrained.pt",
     "use_mask": false,
     "lr": 0.1,
     "epochs": 10,
-    "method": "rl_split"
-  },
-  {
-    "class_to_forget": 0,
-    "checkpoint": "checkpoints/resnet18_svhn_pretrained.pt",
-    "use_mask": false,
-    "lr": 0.1,
-    "epochs": 10,
-    "method": "ga"
+    "method": "ga",
+    "tag": "try2"
   },
   {
     "class_to_forget": 0,
@@ -29,7 +14,8 @@
     "use_mask": true,
     "lr": 0.1,
     "epochs": 10,
-    "method": "ga"
+    "method": "ga",
+    "tag": "try2"
   },
   {
     "idxs_to_forget": "checkpoints/resnet18_svhn_RF_forget.json",
@@ -37,7 +23,8 @@
     "use_mask": true,
     "lr": 0.1,
     "epochs": 10,
-    "method": "rl_split"
+    "method": "rl_split",
+    "tag": "try2"
   },
   {
     "idxs_to_forget": "checkpoints/resnet18_svhn_RF_forget.json",
@@ -45,7 +32,8 @@
     "use_mask": false,
     "lr": 0.1,
     "epochs": 10,
-    "method": "rl_split"
+    "method": "rl_split",
+    "tag": "try2"
   },
   {
     "idxs_to_forget": "checkpoints/resnet18_svhn_RF_forget.json",
@@ -53,7 +41,8 @@
     "use_mask": false,
     "lr": 0.1,
     "epochs": 10,
-    "method": "ga"
+    "method": "ga",
+    "tag": "try2"
   },
   {
     "idxs_to_forget": "checkpoints/resnet18_svhn_RF_forget.json",
