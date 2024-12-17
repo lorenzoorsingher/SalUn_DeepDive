@@ -71,7 +71,6 @@ if __name__ == "__main__":
         "class_to_forget": None,
         "unlearning_rate": None,
         "idxs_to_forget": None,
-        "load_mask": False,
         "use_mask": True,
         "mask_thr": 0.5,
         "lr": 0.1,
@@ -127,9 +126,6 @@ if __name__ == "__main__":
             ITF = settings["idxs_to_forget"]
             EPOCHS = settings["epochs"]
             METHOD = settings["method"]
-
-            # LOAD_MASK = config["load_mask"]
-            # MASK_PATH = f"checkpoints/mask_resnet18_cifar10_{CLASS_TO_FORGET}.pt"
 
             model, config, transform, opt = load_checkpoint(CHKP)
 
