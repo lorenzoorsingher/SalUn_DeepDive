@@ -175,3 +175,11 @@ It's also possible to generate the **Wasserstein distance** confusion matrices b
 ```bash
 python wasserstein.py -S 1000
 ```
+
+## Authors
+
+- [@lorenzoorsingher](https://github.com/lorenzoorsingher)
+- [@vincenzonetti](https://github.com/vincenzonetti)
+- [@blauer4](https://github.com/blauer4)
+
+[GitHub repo](https://github.com/lorenzoorsingher/SalUn_DeepDive)
