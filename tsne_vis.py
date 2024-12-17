@@ -129,13 +129,9 @@ if __name__ == "__main__":
         "yellow",
     ]
 
-    PLOT_PROTO = True
+    PLOT_PROTO = False
     folders = [
         "features/reduced/base",
-        "features/reduced/retrained",
-        "features/reduced/ga",
-        "features/reduced/salun_per_class",
-        "features/reduced/rllow",
     ]
 
     files = {
@@ -275,12 +271,12 @@ if __name__ == "__main__":
             # plt.xlim([-40, 40])
             # plt.ylim([-40, 40])
             # Optional: Animate 3D visualization
-            angles = np.linspace(0, 360, 100)[:-1]
+            angles = np.linspace(0, 360, 50)[:-1]
             rotanimate(
                 ax,
                 angles,
                 f"images/{folder}/tsne_animated/class{cls}.gif",
-                delay=100,
+                delay=1,
                 width=8,
                 height=6,
             )

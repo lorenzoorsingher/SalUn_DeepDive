@@ -46,7 +46,12 @@ if __name__ == "__main__":
         "yellow",
     ]
 
-    folders = ["features/retrained", "features/salun_per_class", "features/base"]
+    folders = [
+        "features/reduced/base",
+        "features/reduced/salun_per_class",
+        "features/reduced/rllow",
+        "features/reduced/retrained",
+    ]
 
     files = {
         folder: {int(n.split(".")[0].split("_")[-1]): n for n in os.listdir(folder)}

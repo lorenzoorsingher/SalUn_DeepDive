@@ -84,10 +84,11 @@ def get_args():
     parser.add_argument("--pat", type=int, default=10)
     parser.add_argument("--epochs", type=int, default=182)
 
-    # Set this to 0 to train on all data
-    parser.add_argument("--unlr", type=float, default=None)  # unlearning ratio.
     parser.add_argument("--itf", type=str, default=None)  # idx to forget
     parser.add_argument("--cf", type=int, default=None)  # class to forget
+    # Set this to 0 to train on all data
+    parser.add_argument("--unlr", type=float, default=None)  # unlearning ratio.
+
     args = parser.parse_args()
 
     return args
@@ -140,7 +141,7 @@ if __name__ == "__main__":
     ds = train_loader.dataset.dataset
     with open(f"{model_savename}_forget.json", "w") as f:
         json.dump(ds.FORGET, f)
-
+    # breakpoint()
     config = {
         "model": MODEL,
         "dataset": DSET,

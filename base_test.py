@@ -87,7 +87,10 @@ def eval_unlearning(model, loaders, names, criterion, DEVICE):
 
             tot_acc += acc
 
-        tot_acc /= len(loader.dataset)
+        if len(loader.dataset) == 0:
+            tot_acc = 0
+        else:
+            tot_acc /= len(loader.dataset)
         accs[name] = tot_acc
     return accs, losses
 
@@ -101,21 +104,20 @@ if __name__ == "__main__":
 
     experiments = [
         (
-            "checkpoints/resnet18_cifar10_SGD_best.pt",
-            "checkpoints/resnet18_cifar10_pretrained_forget.json",
-        ),
-        (
-            "checkpoints/resnet18_cifar10_pretrained_forget.pt",
-            "checkpoints/resnet18_cifar10_pretrained_forget.json",
+            "checkpoints/baselines/svhn/resnet18_svhn_CF.pt",
+            "checkpoints/baselines/svhn/resnet18_svhn_CF_forget.json",
         ),
     ]
 
+    results = {}
     for exp in experiments:
 
         # Set seed
         set_seed(0)
 
-        CHKP, ITF = exp
+        CHKP, _ = exp
+        # CF = int(CHKP.split("_")[-1].split(".")[0])
+        # breakpoint()
 
         model, config, transform, opt = load_checkpoint(CHKP)
 
@@ -129,13 +131,13 @@ if __name__ == "__main__":
             forget_loader,
             retain_loader,
             _,
-        ) = get_dataloaders(DSET, transform, unlr=None, itf=ITF, cf=None)
+        ) = get_dataloaders(DSET, transform, unlr=None, itf=None, cf=0)
 
         model = model.to(DEVICE)
         criterion = torch.nn.CrossEntropyLoss(reduction="none")
 
         # -------------------------------------------------------------
-
+        # breakpoint()
         print("[MAIN] Evaluating model")
         accs, losses = eval_unlearning(
             model,
@@ -147,13 +149,28 @@ if __name__ == "__main__":
         accs["forget"] = 1 - accs["forget"]
 
         print("[MAIN] Computing MIA")
-        mia_auc, mia_acc = compute_basic_mia(
-            torch.tensor(losses["retain"]),
-            torch.tensor(losses["forget"]),
-            torch.tensor(losses["val"]),
-            torch.tensor(losses["test"]),
-        )
+
+        if len(losses["forget"]) == 0:
+            mia_auc = 0
+            mia_acc = 0
+        else:
+            mia_auc, mia_acc = compute_basic_mia(
+                torch.tensor(losses["retain"]),
+                torch.tensor(losses["forget"]),
+                torch.tensor(losses["val"]),
+                torch.tensor(losses["test"]),
+            )
 
         for key, value in accs.items():
             print(f"{key}: {round(value,3)}")
         print(f"MIA AUC: {round(mia_auc,3)}, MIA ACC: {round(mia_acc,3)}")
+
+        results = {
+            "accs": accs,
+            "mia_auc": mia_auc,
+            "mia_acc": mia_acc,
+        }
+
+        # breakpoint()
+        with open("results.json", "w") as f:
+            json.dump(results, f)
