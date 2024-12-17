@@ -1,6 +1,6 @@
-# TA_Project
+# SalUn DeepDive
 
-Welcome to the [name_tbd] repository! This project is dedicated to the in-depth analysis and evaluation of **SalUn**. The SalUn method is a novel approach in the field of machine learning that focuses on the unlearning process within neural networks using saliency masks. Our objective is to explore the inner workings of this technique and provide comprehensive insights into its effectiveness and implications.
+Welcome to the **SalUn DeepDive** repository! This project is dedicated to the in-depth analysis and evaluation of [**SalUn**](https://arxiv.org/abs/2310.12508). The SalUn method is a novel approach in the field of machine learning that focuses on the unlearning process within neural networks using saliency masks. Our objective is to explore the inner workings of this technique and provide comprehensive insights into its effectiveness and implications.
 
 In this project, we conduct various experiments to understand how salun impacts the learning and unlearning processes in neural networks. We delve into the method's mechanics, analyze its performance on different datasets, and evaluate its potential applications. By doing so, we aim to contribute valuable knowledge to the machine learning community and facilitate further research in this area.
 
