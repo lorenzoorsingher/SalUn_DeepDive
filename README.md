@@ -7,8 +7,8 @@ In this project, we conduct various experiments to understand how salun impacts 
 Whether you are a researcher, student, or enthusiast interested in machine learning and neural networks, this repository offers valuable resources and findings related to the salun method. We encourage you to explore our analysis, experiment with the provided code, and contribute to the ongoing research.
 
 <div align="center" style="display: flex;">
-  <img src="imgs/class2.gif" width="50%">
-  <img src="imgs/class2.png" width="50%">
+  <img src="imgs/class2.gif" width="40%">
+  <img src="imgs/class2.png" width="40%">
 </div>
 
 ## What is SalUn?
