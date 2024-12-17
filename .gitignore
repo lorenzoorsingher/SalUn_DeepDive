@@ -132,3 +132,5 @@ output/*/*json
 wandb/
 *.png
 *.gif
+
+!imgs/*
