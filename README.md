@@ -12,8 +12,21 @@ Whether you are a researcher, student, or enthusiast interested in machine learn
 </div>
 
 ## What is SalUn?
+**SalUn** (Salient Unlearning) is a model-agnostic machine unlearning paradigm designed to improve existing unlearning techniques. It operates on the principle of identifying and selectively updating the most influential (salient) model weights with respect to the data to be forgotten ($D_f$).
 
-blah blah blah
+SalUn first calculates a saliency mask m<sub>S</sub> based on the gradient of the loss function ℓ<sub>f</sub> with respect to the forget set:
+
+$$m_S = \mathbb{1}\left(\left|\nabla_\theta \ell_f(\theta; \mathcal{D}_f)\right|_{\theta=\theta_o} \ge \gamma\right) $$
+Here, γ is a threshold determining which gradients are considered significant. This mask m<sub>S</sub> effectively pinpoints the weights most affected by the forget set.
+
+During the unlearning step, only these salient weights are updated:
+$$\theta_u = m_S \odot (\Delta\theta + \theta_o) + (1 - m_S) \odot \theta_o$$
+
+where θ<sub>u</sub> is the unlearned model, θ<sub>o</sub> is the original model, and Δθ represents the weight update (e.g., from a gradient descent step on $D_f$). This selective update focuses the unlearning process on the most relevant parts of the model, potentially leading to more efficient and effective unlearning.
+
+
+
+
 
 ## Project Structure
 
